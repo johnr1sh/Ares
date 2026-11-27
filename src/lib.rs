@@ -6,12 +6,16 @@
 //! discovery, media, or a production-ready session runtime.
 
 mod direction;
+mod receipt;
 mod probe;
 mod protocol;
 mod replay;
 mod session;
 
 pub use direction::{Direction, DirectionHealth, DirectionState, TransitionError};
+pub use receipt::{
+    DeliveryLedger, ReceiptError, ReceiptPolicy, ReceiptPolicyError, MAX_PENDING_RECEIPTS,
+};
 pub use probe::{
     ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker, MAX_OUTSTANDING_PROBES,
 };
