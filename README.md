@@ -15,7 +15,7 @@ The Rust crate now contains working, transport-independent primitives:
 - A fixed-memory 128-sequence replay window.
 - A monotonic probe/ack tracker with acknowledgement deadlines, bounded in-flight work, miss thresholds, and consecutive-success recovery.
 
-These components are unit-tested in the repository CI workflow. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
+The code includes unit tests and CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
