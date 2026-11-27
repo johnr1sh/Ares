@@ -1,6 +1,6 @@
 # ARES validation and fault-injection plan
 
-Status: test strategy. No benchmark results are claimed.
+Status: unit-test coverage exists for the transport-independent core. No network benchmark or security validation result is claimed.
 
 ## Test record
 
@@ -8,7 +8,18 @@ Every run records source commit/build configuration; OS/device/CPU/memory/interf
 
 Never store payloads, credentials or private keys in test artifacts.
 
-## Core acceptance tests
+## Current automated unit coverage
+
+The Rust tests cover:
+- Direction transition guards and saturating counters.
+- Aggregate session classification, including one-way, closed, and incomplete opposite-direction evidence.
+- Frame round-trip, empty payload, invalid magic/version/kind, reserved flags, truncated header, oversized payload, and declared/actual length mismatches.
+- Replay acceptance, duplicates, bounded reordering, stale values, large sequence jumps, and the u64 boundary.
+- Probe policy validation, bounded in-flight work, strictly increasing sequences, timeout/miss transitions, expired acknowledgements, terminal close, and recovery hysteresis.
+
+The repository CI runs formatting, Clippy with warnings denied, and all-target/all-feature tests. A commit is not considered validated until the corresponding Actions run is green.
+
+## Required two-peer acceptance tests
 
 1. Two peers authenticate using the selected trust bootstrap.
 2. Unauthenticated or identity-substituted peers cannot establish an application session.
@@ -33,7 +44,7 @@ Sleep/wake and background/foreground; process crash/restart; interface up/down; 
 
 ## Test layers
 
-Unit tests for state machines, counters, sequence windows, timeouts and limits; property-based tests for invariants; fuzz tests for parsers and handshake/state transitions; two-process integration tests; network-namespace impairment tests; real-device LAN tests; soak/load/recovery tests; security negative tests; dependency audits.
+Unit tests for state machines, framing, replay windows, timeouts and limits; property-based tests for invariants; fuzz tests for parsers and handshake/state transitions; two-process integration tests; network-namespace impairment tests; real-device LAN tests; soak/load/recovery tests; security negative tests; dependency audits.
 
 Every bug fix includes a regression test that fails before the fix and passes afterward.
 
@@ -41,7 +52,7 @@ Every bug fix includes a regression test that fails before the fix and passes af
 
 For each direction and the joint bidirectional outcome, publish numerator, denominator and confidence interval. With zero failures in N independent trials, a rough 95% upper bound is 3/N; independence is often unrealistic, so stratify by device, network and impairment profile and use an appropriate statistical model.
 
-A 100x improvement claim requires the same metric, baseline implementation/version, hardware, topology, impairment profile, duration and harness. Publish absolute rates and uncertainty, not only a ratio. If baseline failures are zero, a 100x reduction cannot be inferred.
+A 100× improvement claim requires the same metric, baseline implementation/version, hardware, topology, impairment profile, duration and harness. Publish absolute rates and uncertainty, not only a ratio. If baseline failures are zero, a 100× reduction cannot be inferred.
 
 ## Core 0.1 release gate
 
