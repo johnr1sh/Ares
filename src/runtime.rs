@@ -155,6 +155,7 @@ impl DirectionEvidenceFreshness {
         self.last_missing_count = self.last_missing_count.max(missing_count);
 
         if new_positive > 0 {
+            self.stale = false;
             self.last_positive_at = Some(now);
             self.last_any_at = Some(now);
             if self.recovery_required {
