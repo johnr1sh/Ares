@@ -17,7 +17,7 @@ The Rust crate now contains working, transport-independent primitives:
 - A receiver-reported delivery ledger that keeps A→B and B→A independent and bounds unconfirmed receipts.
 - A bidirectional delivery supervisor that reports one-way failure only when one direction has explicit receiver-reported missing evidence and the opposite direction has confirmed delivery.
 
-The crate includes 42 unit tests across state transitions, framing, replay, probes, and directional delivery evidence. CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
+The crate includes 43 unit tests across state transitions, framing, replay, probes, and directional delivery evidence. CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
