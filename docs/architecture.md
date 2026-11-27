@@ -6,7 +6,7 @@ Status: architecture proposal with a partially implemented, transport-independen
 
 The first deliverable is a native two-peer core that will prove authenticated communication over a viable IP network, including local-network operation without internet access, and independently detect/localize one-way failures.
 
-The repository currently implements state, framing, replay-window bookkeeping, and probe tracking. It does not yet implement sockets, QUIC, authenticated sessions, discovery, offline-LAN operation, media, browser support, NAT traversal, or a 100× reliability improvement.
+The repository currently implements state, framing, replay-window bookkeeping, probe tracking, and a receiver-reported directional delivery ledger. It does not yet implement sockets, QUIC, authenticated sessions, discovery, offline-LAN operation, media, browser support, NAT traversal, or a 100× reliability improvement.
 
 ## Current crate boundaries
 
@@ -14,8 +14,10 @@ The repository currently implements state, framing, replay-window bookkeeping, a
 2. **Frame codec:** bounded version-1 frame parser/encoder with explicit message kind, session identifier, sequence number, and maximum payload length.
 3. **Replay window:** fixed-memory 128-sequence window. It must be updated only after cryptographic authentication.
 4. **Probe tracker:** bounded outstanding-probe ledger, monotonic acknowledgement deadlines, miss thresholds, and consecutive-success recovery.
-5. **Future transport adapter:** owns actual sends/receives and maps remote receipt evidence to the reliability supervisor.
-6. **Future identity/security layer:** pairing, mutual peer authentication, encrypted transport, authorization, replay enforcement, expiry and revocation.
+5. **Delivery evidence ledger:** tracks sender submissions separately from authenticated receiver-reported receipt or non-receipt. Missing local ACKs are not treated as proof of a failed direction.
+6. **Bidirectional delivery supervisor:** keeps A→B and B→A ledgers separate and derives session health from receiver-side evidence.
+7. **Future transport adapter:** owns actual sends/receives and maps authenticated remote reports to the reliability supervisor.
+8. **Future identity/security layer:** pairing, mutual peer authentication, encrypted transport, authorization, replay enforcement, expiry and revocation.
 
 ## Non-negotiable invariants
 
