@@ -260,7 +260,6 @@ impl DeliveryLedger {
     }
 }
 
-
 /// Two independent delivery ledgers for one A/B session.
 ///
 /// A direction becomes healthy only from a receiver-originated receipt report.
@@ -524,7 +523,10 @@ mod tests {
     #[test]
     fn one_direction_receipt_does_not_make_session_healthy() {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
-        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_sent(1)
+            .unwrap();
         session
             .direction_mut(Direction::AToB)
             .record_remote_received(1)
