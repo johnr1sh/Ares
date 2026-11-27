@@ -19,7 +19,7 @@ The Rust crate now contains reliability primitives and an early native two-peer 
 - A native peer process with mutual TLS identity validation, exact SHA-256 leaf pins, and independent AEAD-protected UDP heartbeat/report traffic.
 - A Linux network-namespace fault-injection script that applies real egress packet loss with tc netem and checks the surviving direction.
 
-The native runtime currently proves heartbeat delivery and directional health; it is not yet a general application-data, audio, or video transport. Its UDP heartbeat and pre-shared-key design is a proof of concept, not the final transport decision. The CI packet-drop job must pass before the network experiment is called validated. The frame codec itself is not cryptographic protection and is only used inside TLS.
+The native runtime currently proves heartbeat delivery and directional health; it is not yet a general application-data, audio, or video transport. Its UDP heartbeat and pre-shared-key design is a proof of concept, not the final transport decision. The CI packet-drop job must pass before the network experiment is called validated. The frame codec is not cryptographic protection; UDP frames are authenticated and encrypted with AEAD after mutual TLS peer authentication.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
