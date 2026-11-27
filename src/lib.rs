@@ -1,4 +1,6 @@
 //! ARES Core reliability primitives.
+
+#![forbid(unsafe_code)]
 //!
 //! The current crate provides a direction-aware state model, a bounded frame
 //! codec, replay-window bookkeeping, and a monotonic probe/ack tracker.
