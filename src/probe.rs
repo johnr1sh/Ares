@@ -47,7 +47,9 @@ pub enum ProbePolicyError {
 impl fmt::Display for ProbePolicyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ZeroAcknowledgementTimeout => write!(f, "acknowledgement timeout must be non-zero"),
+            Self::ZeroAcknowledgementTimeout => {
+                write!(f, "acknowledgement timeout must be non-zero")
+            },
             Self::InvalidMissThresholds => {
                 write!(f, "failure threshold must be greater than degradation threshold")
             }
