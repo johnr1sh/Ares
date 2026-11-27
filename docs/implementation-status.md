@@ -9,16 +9,17 @@ Last updated: 2026-11-27.
 | Direction/session state | Implemented | Separate directional state; conservative aggregate |
 | Frame codec and replay window | Implemented | Bounded framing and replay bookkeeping |
 | Receipt ledger | Implemented | Sender-side authenticated reports plus direct receiver observations |
-| Native two-peer runtime | Implemented as a proof of concept | Tokio TCP/TLS; independent outbound connections; CA validation and SHA-256 peer pins |
-| Receiver telemetry | Implemented | Scheduled heartbeats, receiver-observed deadlines, reports over the opposite independent connection |
+| Native two-peer runtime | Implemented as a proof of concept | Mutual TLS, CA validation, exact SHA-256 peer pins, independent UDP heartbeat/report path |
+| Datagram security | Implemented | HKDF-SHA-256 key separation and ChaCha20-Poly1305 authentication/encryption using an out-of-band session PSK |
+| Receiver telemetry | Implemented | Scheduled heartbeats, receiver-observed deadlines, reports over reverse UDP |
 | Packet-drop harness | Implemented | Linux namespaces, veth, and tc netem; CI job executes real egress packet loss |
 | CI | Configured | Format, Clippy, tests, binary build, docs, packet-drop experiment |
 
 ## Explicit limitations
 
-- TCP/TLS only; Quinn/QUIC and deadline-bound datagrams are not implemented.
-- Heartbeat deadline misses are liveness evidence, not proof that a specific IP packet was dropped.
-- The runtime currently carries heartbeats and receipts, not application data, audio, or video.
+- The runtime is a heartbeat/reliability proof of concept, not a general data, audio, or video transport.
+- UDP reports are not retransmitted; there is no ack-of-ack or report reorder buffer yet.
+- A missed heartbeat is liveness evidence, not proof that a specific IP packet was dropped.
 - No discovery, NAT traversal, relay, path migration, browser runtime, persistent identity store, revocation, or key rotation.
 - No offline-LAN claim until tested on real target devices and AP configurations.
 - No WebRTC comparative reliability claim or production security audit.
@@ -26,7 +27,7 @@ Last updated: 2026-11-27.
 ## Evidence gates
 
 1. Compile, lint, unit tests, docs.
-2. Two-process mutual TLS and peer fingerprint enforcement.
+2. Two-process mutual TLS, exact peer pins, and AEAD-authenticated UDP.
 3. Linux veth/tc netem directional packet-drop experiment.
 4. Real device/LAN tests with internet disabled and realistic Wi-Fi isolation.
 5. Reproducible WebRTC baseline comparison with absolute rates and confidence intervals.

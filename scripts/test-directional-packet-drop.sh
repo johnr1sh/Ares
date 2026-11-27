@@ -52,10 +52,11 @@ done
 A_PIN="$(openssl x509 -in "$WORK/a.pem" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-F' 'a-f')"
 B_PIN="$(openssl x509 -in "$WORK/b.pem" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'A-F' 'a-f')"
 SESSION="00112233445566778899aabbccddeeff"
+PSK="$(openssl rand -hex 32)"
 
-ip netns exec ares-a "$BIN" a 10.241.0.1:41001 10.241.0.2:41001 b "$WORK/ca.der" "$WORK/a.der" "$WORK/a-key.der" "$B_PIN" "$SESSION" >"$A_LOG" 2>&1 &
+ip netns exec ares-a "$BIN" a 10.241.0.1:41001 10.241.0.2:41001 b "$WORK/ca.der" "$WORK/a.der" "$WORK/a-key.der" "$B_PIN" "$SESSION" "$PSK" >"$A_LOG" 2>&1 &
 A_PID=$!
-ip netns exec ares-b "$BIN" b 10.241.0.2:41001 10.241.0.1:41001 a "$WORK/ca.der" "$WORK/b.der" "$WORK/b-key.der" "$A_PIN" "$SESSION" >"$B_LOG" 2>&1 &
+ip netns exec ares-b "$BIN" b 10.241.0.2:41001 10.241.0.1:41001 a "$WORK/ca.der" "$WORK/b.der" "$WORK/b-key.der" "$A_PIN" "$SESSION" "$PSK" >"$B_LOG" 2>&1 &
 B_PID=$!
 
 echo "Waiting for authenticated bidirectional baseline..."
@@ -63,7 +64,7 @@ for _ in $(seq 1 40); do
   if grep -q 'session=BidirectionalHealthy' "$A_LOG" && grep -q 'session=BidirectionalHealthy' "$B_LOG"; then break; fi
   sleep 1
 done
-if ! grep -q 'session=BidirectionalHealthy' "$A_LOG"; then
+if ! grep -q 'session=BidirectionalHealthy' "$A_LOG" || ! grep -q 'session=BidirectionalHealthy' "$B_LOG"; then
   cat "$A_LOG" "$B_LOG"
   echo "baseline did not become bidirectionally healthy" >&2
   exit 1
