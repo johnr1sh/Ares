@@ -42,6 +42,16 @@ The probe tracker:
 
 The tracker models an acknowledgement exchange (a request/response path). An ACK timeout alone cannot distinguish a lost forward probe from a lost reverse ACK. A real two-peer supervisor must combine both endpoints' directional send/receipt observations and separately measured probe directions before asserting which physical direction failed.
 
+## Receiver-reported directional delivery evidence
+
+The crate provides a bounded delivery ledger for each direction and a bidirectional supervisor. A local send accepted by a transport is recorded as pending; it does not mark the direction healthy. Only a receiver-originated report that is authenticated, bound to the session, and bound to the correct direction can confirm delivery.
+
+A receiver may report a sequence missing only after its own observation deadline. A sender-side ACK timeout is not sufficient evidence to call a physical direction failed: the forward probe or the reverse receipt may have been lost. The receiver's authenticated report provides the missing directional observation when the report path is available.
+
+The two ledgers remain independent. A session is classified OneWay only when one direction has explicit receiver-reported missing evidence beyond its configured threshold while the opposite direction has confirmed receiver-reported delivery. If the reverse reporting path is also unavailable, the result remains incomplete/degraded rather than inventing a direction diagnosis.
+
+The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing sequence numbers, rejects unsolicited/duplicate reports, and requires consecutive confirmed receipts to recover from Failed. The integration layer must authenticate the report and enforce its session/direction binding before invoking the API. This crate does not yet implement that network report protocol or cryptographic authentication.
+
 ## Session health
 
 A session is bidirectionally healthy only when both direction records are Healthy. One Healthy direction plus a confirmed Failed/Closed opposite direction is OneWay. A Healthy direction paired with Unknown, Starting, Degraded, or Recovering evidence is Degraded, never BidirectionalHealthy.
