@@ -397,6 +397,10 @@ mod tests {
         assert_eq!(ledger.state(), DirectionState::Closed);
         assert_eq!(ledger.pending_count(), 0);
         assert_eq!(ledger.record_sent(2), Err(ReceiptError::Closed));
+        assert_eq!(
+            ledger.record_remote_received(1),
+            Err(ReceiptError::Closed)
+        );
     }
 
     #[test]
@@ -435,6 +439,20 @@ mod tests {
                 maximum: MAX_PENDING_RECEIPTS
             })
         );
+        invalid = policy();
+        invalid.max_pending = 0;
+        assert_eq!(
+            DeliveryLedger::new(invalid).err(),
+            Some(ReceiptPolicyError::ZeroPendingLimit)
+        );
+
+        invalid = policy();
+        invalid.recovery_successes = 0;
+        assert_eq!(
+            DeliveryLedger::new(invalid).err(),
+            Some(ReceiptPolicyError::ZeroRecoveryThreshold)
+        );
+
         invalid = policy();
         invalid.failed_after_missing = invalid.degraded_after_missing;
         assert_eq!(
