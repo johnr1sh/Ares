@@ -123,6 +123,32 @@ mod tests {
     }
 
     #[test]
+    fn exact_replay_window_boundary_is_inclusive_at_127() {
+        let mut window = ReplayWindow::new();
+        window.accept(1_000).unwrap();
+        window.accept(1_127).unwrap();
+        assert_eq!(window.accept(1_000), Ok(()));
+        assert_eq!(
+            window.accept(1_000),
+            Err(ReplayError::Duplicate { sequence: 1_000 })
+        );
+    }
+
+    #[test]
+    fn sequence_128_positions_behind_highest_is_too_old() {
+        let mut window = ReplayWindow::new();
+        window.accept(1_000).unwrap();
+        window.accept(1_128).unwrap();
+        assert_eq!(
+            window.accept(1_000),
+            Err(ReplayError::TooOld {
+                sequence: 1_000,
+                highest_seen: 1_128
+            })
+        );
+    }
+
+    #[test]
     fn large_jump_and_u64_boundary_do_not_overflow() {
         let mut window = ReplayWindow::new();
         window.accept(1).unwrap();
