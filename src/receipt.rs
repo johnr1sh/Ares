@@ -5,7 +5,7 @@
 //! missing-delivery report must also come from the authenticated receiver;
 //! silence alone never proves which direction failed.
 
-use crate::DirectionState;
+use crate::{Direction, DirectionHealth, DirectionState, SessionHealth, SessionState};
 use core::fmt;
 use std::collections::VecDeque;
 
@@ -240,6 +240,55 @@ impl DeliveryLedger {
     }
 }
 
+
+/// Two independent delivery ledgers for one A/B session.
+///
+/// A direction becomes healthy only from a receiver-originated receipt report.
+/// A one-way result requires explicit receiver evidence for one direction and
+/// successful receipt evidence for the opposite direction.
+#[derive(Debug, Clone)]
+pub struct BidirectionalDelivery {
+    a_to_b: DeliveryLedger,
+    b_to_a: DeliveryLedger,
+}
+
+impl BidirectionalDelivery {
+    pub fn new(policy: ReceiptPolicy) -> Result<Self, ReceiptPolicyError> {
+        Ok(Self {
+            a_to_b: DeliveryLedger::new(policy)?,
+            b_to_a: DeliveryLedger::new(policy)?,
+        })
+    }
+
+    pub fn direction(&self, direction: Direction) -> &DeliveryLedger {
+        match direction {
+            Direction::AToB => &self.a_to_b,
+            Direction::BToA => &self.b_to_a,
+        }
+    }
+
+    pub fn direction_mut(&mut self, direction: Direction) -> &mut DeliveryLedger {
+        match direction {
+            Direction::AToB => &mut self.a_to_b,
+            Direction::BToA => &mut self.b_to_a,
+        }
+    }
+
+    pub fn state(&self) -> SessionState {
+        SessionHealth {
+            a_to_b: DirectionHealth {
+                state: self.a_to_b.state(),
+                ..DirectionHealth::default()
+            },
+            b_to_a: DirectionHealth {
+                state: self.b_to_a.state(),
+                ..DirectionHealth::default()
+            },
+        }
+        .state()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -345,6 +394,31 @@ mod tests {
         assert_eq!(ledger.state(), DirectionState::Closed);
         assert_eq!(ledger.pending_count(), 0);
         assert_eq!(ledger.record_sent(2), Err(ReceiptError::Closed));
+    }
+
+    #[test]
+    fn bidirectional_delivery_detects_confirmed_one_way_failure() {
+        let mut session = BidirectionalDelivery::new(policy()).unwrap();
+
+        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
+        session.direction_mut(Direction::AToB).record_remote_missing(1).unwrap();
+        session.direction_mut(Direction::AToB).record_sent(2).unwrap();
+        session.direction_mut(Direction::AToB).record_remote_missing(2).unwrap();
+
+        session.direction_mut(Direction::BToA).record_sent(1).unwrap();
+        session.direction_mut(Direction::BToA).record_remote_received(1).unwrap();
+
+        assert_eq!(session.state(), SessionState::OneWay);
+        assert_eq!(session.direction(Direction::AToB).state(), DirectionState::Failed);
+        assert_eq!(session.direction(Direction::BToA).state(), DirectionState::Healthy);
+    }
+
+    #[test]
+    fn one_direction_receipt_does_not_make_session_healthy() {
+        let mut session = BidirectionalDelivery::new(policy()).unwrap();
+        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
+        session.direction_mut(Direction::AToB).record_remote_received(1).unwrap();
+        assert_eq!(session.state(), SessionState::Degraded);
     }
 
     #[test]
