@@ -12,7 +12,9 @@ mod replay;
 mod session;
 
 pub use direction::{Direction, DirectionHealth, DirectionState, TransitionError};
-pub use probe::{ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker};
+pub use probe::{
+    ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker, MAX_OUTSTANDING_PROBES,
+};
 pub use protocol::{
     decode_frame, encode_frame, Frame, FrameError, MessageKind, FRAME_MAGIC, HEADER_LEN,
     MAX_PAYLOAD_LEN, PROTOCOL_VERSION,
