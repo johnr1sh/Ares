@@ -151,6 +151,68 @@ impl DeliveryLedger {
         self.pending.len()
     }
 
+    /// Highest monotonically observed inbound sequence, or zero before traffic.
+    pub fn last_observed_sequence(&self) -> u64 {
+        self.last_observed_sequence
+    }
+
+    /// Record a frame directly observed by this endpoint as the receiver.
+    /// Unlike a remote receipt, this requires no local outbound send.
+    pub fn record_observed_received(&mut self, sequence: u64) -> Result<(), ReceiptError> {
+        self.check_observation_sequence(sequence)?;
+        self.last_observed_sequence = sequence;
+        self.confirmed_received = self.confirmed_received.saturating_add(1);
+        self.consecutive_missing = 0;
+        match self.state {
+            DirectionState::Failed | DirectionState::Recovering => {
+                self.state = DirectionState::Recovering;
+                self.recovery_successes = self.recovery_successes.saturating_add(1);
+                if self.recovery_successes >= self.policy.recovery_successes {
+                    self.state = DirectionState::Healthy;
+                    self.recovery_successes = 0;
+                }
+            }
+            DirectionState::Closed => return Err(ReceiptError::Closed),
+            _ => {
+                self.state = DirectionState::Healthy;
+                self.recovery_successes = 0;
+            }
+        }
+        Ok(())
+    }
+
+    /// Record a receiver-side heartbeat deadline that elapsed without the
+    /// expected sequence arriving. This is receiver-observed absence, not a
+    /// sender-side acknowledgement timeout.
+    pub fn record_observed_missing(&mut self, sequence: u64) -> Result<(), ReceiptError> {
+        self.check_observation_sequence(sequence)?;
+        self.last_observed_sequence = sequence;
+        self.confirmed_missing = self.confirmed_missing.saturating_add(1);
+        self.consecutive_missing = self.consecutive_missing.saturating_add(1);
+        self.recovery_successes = 0;
+        if self.state == DirectionState::Recovering
+            || self.consecutive_missing >= self.policy.failed_after_missing
+        {
+            self.state = DirectionState::Failed;
+        } else if self.consecutive_missing >= self.policy.degraded_after_missing {
+            self.state = DirectionState::Degraded;
+        }
+        Ok(())
+    }
+
+    fn check_observation_sequence(&self, sequence: u64) -> Result<(), ReceiptError> {
+        if self.state == DirectionState::Closed {
+            return Err(ReceiptError::Closed);
+        }
+        if sequence <= self.last_observed_sequence {
+            return Err(ReceiptError::ReportSequenceNotIncreasing {
+                previous: self.last_observed_sequence,
+                next: sequence,
+            });
+        }
+        Ok(())
+    }
+
     pub fn confirmed_received(&self) -> u64 {
         self.confirmed_received
     }
