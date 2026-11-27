@@ -42,7 +42,11 @@ pub struct TransitionError {
 
 impl fmt::Display for TransitionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "invalid direction-state transition: {:?} -> {:?}", self.from, self.to)
+        write!(
+            f,
+            "invalid direction-state transition: {:?} -> {:?}",
+            self.from, self.to
+        )
     }
 }
 
@@ -84,7 +88,10 @@ impl DirectionHealth {
         );
 
         if !allowed {
-            return Err(TransitionError { from: self.state, to: next });
+            return Err(TransitionError {
+                from: self.state,
+                to: next,
+            });
         }
 
         self.state = next;
