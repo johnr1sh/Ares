@@ -198,7 +198,9 @@ impl DirectionEvidenceFreshness {
             && matches!(
                 underlying,
                 DirectionState::Healthy | DirectionState::Failed | DirectionState::Recovering
-            )) || (self.recovery_required && underlying == DirectionState::Healthy) {
+            ))
+            || (self.recovery_required && underlying == DirectionState::Healthy)
+        {
             DirectionState::Degraded
         } else {
             underlying
