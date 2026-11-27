@@ -10,6 +10,9 @@ use core::fmt;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+/// Hard ceiling so callers cannot configure unbounded probe bookkeeping.
+pub const MAX_OUTSTANDING_PROBES: usize = 1024;
+
 /// Time and memory limits for one probe tracker.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProbePolicy {
@@ -37,6 +40,7 @@ pub enum ProbePolicyError {
     ZeroAcknowledgementTimeout,
     InvalidMissThresholds,
     ZeroOutstandingLimit,
+    OutstandingLimitTooLarge { requested: usize, maximum: usize },
     ZeroRecoveryThreshold,
 }
 
@@ -48,6 +52,10 @@ impl fmt::Display for ProbePolicyError {
                 write!(f, "failure threshold must be greater than degradation threshold")
             }
             Self::ZeroOutstandingLimit => write!(f, "outstanding probe limit must be non-zero"),
+            Self::OutstandingLimitTooLarge { requested, maximum } => write!(
+                f,
+                "outstanding probe limit {requested} exceeds maximum {maximum}"
+            ),
             Self::ZeroRecoveryThreshold => write!(f, "recovery threshold must be non-zero"),
         }
     }
@@ -112,6 +120,12 @@ impl ProbeTracker {
         }
         if policy.max_outstanding == 0 {
             return Err(ProbePolicyError::ZeroOutstandingLimit);
+        }
+        if policy.max_outstanding > MAX_OUTSTANDING_PROBES {
+            return Err(ProbePolicyError::OutstandingLimitTooLarge {
+                requested: policy.max_outstanding,
+                maximum: MAX_OUTSTANDING_PROBES,
+            });
         }
         if policy.recovery_successes == 0 {
             return Err(ProbePolicyError::ZeroRecoveryThreshold);
@@ -277,6 +291,16 @@ mod tests {
         assert_eq!(
             ProbeTracker::new(invalid).err(),
             Some(ProbePolicyError::ZeroOutstandingLimit)
+        );
+
+        invalid = policy();
+        invalid.max_outstanding = MAX_OUTSTANDING_PROBES + 1;
+        assert_eq!(
+            ProbeTracker::new(invalid).err(),
+            Some(ProbePolicyError::OutstandingLimitTooLarge {
+                requested: MAX_OUTSTANDING_PROBES + 1,
+                maximum: MAX_OUTSTANDING_PROBES
+            })
         );
 
         invalid = policy();
