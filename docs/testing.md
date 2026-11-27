@@ -1,6 +1,6 @@
 # ARES validation and fault-injection plan
 
-Status: unit-test coverage exists for the transport-independent core. No network benchmark or security validation result is claimed.
+Status: core tests and Linux namespace fault-injection tests have passed. Physical-device offline-LAN validation and security certification remain NOT RUN.
 
 ## Test record
 
@@ -26,16 +26,16 @@ The repository CI runs formatting, Clippy with warnings denied, and all-target/a
 
 ## Verified CI snapshot (2026-11-27)
 
-Commit: `136e0a40124b6b16d771b8eed01761ebd0f93c71`
-GitHub Actions run: `46010224443` (all jobs passed)
+Expanded network test commit: `d9bdf22a1212ca1f2e92c70192345d593dc8a473`
+GitHub Actions run: `46014398124` (network job passed; formatting check failed on a formatting-only difference, fixed in `3334f89`; full rerun pending as run `46014658811`)
 
 - Formatting check: passed.
 - Clippy with warnings denied: passed.
 - Unit tests: 51 passed.
 - Native binary build and documentation build: passed.
-- Real directional packet-drop experiment: passed. Two Linux network namespaces were connected by a veth pair; A's egress was set to 100% loss with `tc netem`. Endpoint A reported `session=OneWay a_to_b=Failed b_to_a=Healthy`.
+- Real veth network experiment: passed all phases. A-only egress loss produced `A: OneWay a_to_b=Failed b_to_a=Healthy`. Mirrored B-only loss produced `B: OneWay a_to_b=Healthy b_to_a=Failed`; A downgraded its stale opposite-direction evidence to `Degraded` rather than claiming OneWay. A simultaneous bidirectional blackhole produced `Degraded` at both endpoints because neither endpoint could receive authenticated reports proving the opposite direction failed. Removing each impairment restored `BidirectionalHealthy` at both endpoints.
 
-This is one controlled Linux topology. It does not yet validate the mirrored B→A impairment, both directions blocked, Wi-Fi/AP isolation, physical devices, long-duration loss/reordering, or a comparative WebRTC reliability ratio.
+This validates one controlled Linux namespace/veth topology, not physical devices, Wi-Fi/AP isolation, VLAN/firewall behavior, WAN-disconnected LAN operation, long-duration loss/reordering, or a comparative WebRTC reliability ratio.
 
 ## Required two-peer acceptance tests
 
@@ -43,14 +43,18 @@ This is one controlled Linux topology. It does not yet validate the mirrored B�
 2. **Partial:** positive identity validation is exercised; explicit wrong-pin and untrusted-certificate negative tests remain.
 3. **Passed in CI:** both directions reach a receiver-confirmed healthy baseline.
 4. **Passed in CI:** blocking only A_TO_B yields ONE_WAY at A and identifies A_TO_B as failed.
-5. Not yet run: mirrored B_TO_A impairment.
-6. Not yet run: simultaneous bidirectional packet blackhole.
+5. **Passed in CI:** mirrored B_TO_A impairment; B reports B→A Failed/A→B Healthy while A conservatively reports Degraded because its reverse receipt path is blocked.
+6. **Passed in CI:** simultaneous bidirectional packet blackhole; both endpoints report Degraded because outbound failure cannot be authenticated across a fully blocked return path.
 7. **Partially covered:** a TLS-authenticated session does not become healthy until receiver-observed UDP heartbeats and receipts arrive.
-8. Not yet run: internet loss while LAN remains available.
-9. Not yet run: Wi-Fi client isolation, VLAN, or firewall topology validation.
+8. Not yet run: internet loss while LAN remains available on physical devices. Provisioning and run scripts are provided in `docs/real-device-lan-test.md`.
+9. Not yet run: Wi-Fi client isolation, VLAN, or firewall topology validation on physical devices.
 10. Not yet run: process restart and long-duration retry/recovery budgets.
 11. **Partially covered:** frame bounds, replay bookkeeping, and AEAD tamper/session-binding checks are unit-tested; parser fuzzing remains.
 12. **Partially covered:** runtime logs avoid payloads and key bytes; a broader diagnostics/privacy audit remains.
+
+## Physical-device offline-LAN test
+
+A credential provisioning script, per-peer launcher, and physical-device runbook are available: `scripts/provision-lan-pair.sh`, `scripts/run-lan-peer.sh`, and `docs/real-device-lan-test.md`. The physical-device WAN-disconnection test remains **NOT RUN** until two real endpoints' logs and environment details are reviewed. Namespace tests do not count as this acceptance test.
 
 ## Network impairment matrix
 

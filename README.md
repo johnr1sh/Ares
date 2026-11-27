@@ -17,9 +17,10 @@ The Rust crate now contains reliability primitives and an early native two-peer 
 - A receiver-reported delivery ledger that keeps A→B and B→A independent and bounds unconfirmed receipts.
 - A bidirectional delivery supervisor with direct receiver observations and authenticated remote receipt evidence.
 - A native peer process with mutual TLS identity validation, exact SHA-256 leaf pins, and independent AEAD-protected UDP heartbeat/report traffic.
-- A Linux network-namespace fault-injection script that applies real egress packet loss with tc netem and checks the surviving direction.
+- A Linux network-namespace fault-injection suite that tests both one-way loss directions, bidirectional blackhole ambiguity, and recovery using real tc netem packet drops.
+- A physical-device offline-LAN provisioning helper, peer launcher, and step-by-step WAN-disconnection test guide.
 
-The native runtime currently proves heartbeat delivery and directional health; it is not yet a general application-data, audio, or video transport. Its UDP heartbeat and pre-shared-key design is a proof of concept, not the final transport decision. The CI network-layer packet-drop experiment passed on commit `136e0a4`: 100% A→B egress loss was classified as A→B Failed while B→A remained Healthy. This is a single controlled Linux topology, not a general Wi-Fi/LAN or WebRTC performance claim. The frame codec is not cryptographic protection; UDP frames are authenticated and encrypted with AEAD after mutual TLS peer authentication.
+The native runtime currently proves heartbeat delivery and directional health; it is not yet a general application-data, audio, or video transport. Its UDP heartbeat and pre-shared-key design is a proof of concept, not the final transport decision. The expanded CI network-layer experiment passed on commit `d9bdf22`: it validated A→B-only loss, mirrored B→A-only loss, a bidirectional blackhole, and recovery. This is one controlled Linux topology, not a physical Wi-Fi/LAN or WebRTC performance claim. The real-device WAN-disconnection test remains NOT RUN. The frame codec is not cryptographic protection; UDP frames are authenticated and encrypted with AEAD after mutual TLS peer authentication.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
@@ -47,6 +48,7 @@ See [implementation status](docs/implementation-status.md) for the exact boundar
 
 - [Implementation status](docs/implementation-status.md)
 - [Native runtime and packet-drop test](docs/native-runtime.md)
+- [Real-device offline-LAN test](docs/real-device-lan-test.md)
 - [Architecture](docs/architecture.md)
 - [Core protocol and frame format](docs/core-protocol.md)
 - [Security model](SECURITY.md)

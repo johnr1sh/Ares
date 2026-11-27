@@ -81,5 +81,13 @@ reports:
 
     session=OneWay a_to_b=Failed b_to_a=Healthy
 
-The CI job runs this same network-layer experiment. A passing unit test or an
-application-level drop simulation is not a substitute for this experiment.
+The CI job runs the expanded network-layer experiment: A→B-only loss,
+B→A-only loss, both-directions-down, and recovery after each impairment. It
+also checks that stale positive evidence expires to Degraded when the return
+report path is unavailable, preventing a false OneWay claim. A passing unit
+test or an application-level drop simulation is not a substitute for this
+experiment.
+
+For two physical devices and WAN-disconnected LAN validation, follow
+[the real-device LAN test](real-device-lan-test.md). That test remains NOT RUN
+until real endpoint logs and environment details are collected.
