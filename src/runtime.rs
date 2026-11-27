@@ -274,9 +274,8 @@ async fn receive_loop(
         .direction(inbound_direction)
         .last_observed_sequence()
         .saturating_add(1);
-    let mut ticker = time::interval(config.observation_timeout);
-    ticker.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
-    ticker.tick().await;
+    let deadline = time::sleep(config.observation_timeout);
+    tokio::pin!(deadline);
 
     loop {
         tokio::select! {
@@ -300,6 +299,7 @@ async fn receive_loop(
                             apply_observed_received(&delivery, inbound_direction, frame.sequence)?;
                             queue_report(&reports, &config, frame.sequence, REPORT_RECEIVED).await?;
                             expected = frame.sequence.saturating_add(1);
+                            deadline.as_mut().reset(time::Instant::now() + config.observation_timeout);
                         }
                     }
                     MessageKind::Acknowledgement => {
@@ -320,10 +320,11 @@ async fn receive_loop(
                     MessageKind::Data => bail!("data frames are not enabled in the heartbeat runtime"),
                 }
             }
-            _ = ticker.tick() => {
+            _ = &mut deadline => {
                 apply_observed_missing(&delivery, inbound_direction, expected)?;
                 queue_report(&reports, &config, expected, REPORT_MISSING).await?;
                 expected = expected.saturating_add(1);
+                deadline.as_mut().reset(time::Instant::now() + config.observation_timeout);
             }
         }
     }
