@@ -37,9 +37,12 @@ async fn run() -> anyhow::Result<()> {
     let expected_peer_sha256 =
         decode_hex::<32>(&args[8], "peer SHA-256 fingerprint").map_err(anyhow::Error::msg)?;
     let session_id = decode_hex::<16>(&args[9], "session id").map_err(anyhow::Error::msg)?;
-    let shared_session_key: [u8; 32] = std::fs::read(&args[10])?
-        .try_into()
-        .map_err(|bytes: Vec<u8>| anyhow::anyhow!("session key file must be 32 bytes, got {}", bytes.len()))?;
+    let shared_session_key: [u8; 32] =
+        std::fs::read(&args[10])?
+            .try_into()
+            .map_err(|bytes: Vec<u8>| {
+                anyhow::anyhow!("session key file must be 32 bytes, got {}", bytes.len())
+            })?;
     let config = PeerConfig {
         local_is_a,
         bind_addr,
