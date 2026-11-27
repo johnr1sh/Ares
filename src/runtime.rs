@@ -374,7 +374,7 @@ async fn receive_loop(
         .last_observed_sequence()
         .saturating_add(1);
     let mut pending = BTreeSet::new();
-    let mut deadline = time::sleep(config.observation_timeout);
+    let deadline = time::sleep(config.observation_timeout);
     tokio::pin!(deadline);
     let mut buffer = [0_u8; MAX_UDP_PACKET];
 
