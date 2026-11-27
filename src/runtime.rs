@@ -84,6 +84,8 @@ impl AuthGate {
     async fn wait_for_mutual_auth(&self) {
         loop {
             let notified = self.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
             if self.flags.load(Ordering::Acquire) == (AUTH_INBOUND | AUTH_OUTBOUND) {
                 return;
             }
@@ -946,4 +948,24 @@ mod tests {
         .state();
         assert_eq!(session, SessionState::Degraded);
     }
+    #[tokio::test]
+    async fn auth_gate_waits_for_both_directions_without_losing_wakeups() {
+        let gate = Arc::new(AuthGate::default());
+        let waiter_gate = Arc::clone(&gate);
+        let waiter = tokio::spawn(async move {
+            waiter_gate.wait_for_mutual_auth().await;
+        });
+
+        tokio::task::yield_now().await;
+        gate.mark(AUTH_INBOUND);
+        tokio::task::yield_now().await;
+        assert!(!waiter.is_finished());
+
+        gate.mark(AUTH_OUTBOUND);
+        time::timeout(Duration::from_secs(1), waiter)
+            .await
+            .expect("mutual-auth gate waiter was not notified")
+            .expect("mutual-auth gate task panicked");
+    }
+
 }
