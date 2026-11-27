@@ -13,7 +13,7 @@ Last updated: 2026-11-27.
 | Datagram security | Implemented | HKDF-SHA-256 key separation and ChaCha20-Poly1305 authentication/encryption using an out-of-band session PSK |
 | Receiver telemetry | Implemented | Scheduled heartbeats, receiver-observed deadlines, reports over reverse UDP |
 | Packet-drop harness | Passed | Both one-way directions, bidirectional blackhole ambiguity, and recovery tested with Linux namespaces/veth/tc netem |
-| CI | Full rerun pending | Expanded network experiment passed on `d9bdf22` (run `46014398124`); format/lint/test rerun is in progress on `3334f89` (run `46014658811`) |
+| CI | Passed on `ec95468` | Format, shell syntax, LAN credential smoke test, Clippy, unit tests, binary/docs builds, and expanded network fault injection all green (run `46015019672`) |
 
 ## Explicit limitations
 

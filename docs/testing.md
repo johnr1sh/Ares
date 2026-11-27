@@ -26,10 +26,12 @@ The repository CI runs formatting, Clippy with warnings denied, and all-target/a
 
 ## Verified CI snapshot (2026-11-27)
 
-Expanded network test commit: `d9bdf22a1212ca1f2e92c70192345d593dc8a473`
-GitHub Actions run: `46014398124` (network job passed; formatting check failed on a formatting-only difference, fixed in `3334f89`; full rerun pending as run `46014658811`)
+Verified commit: `ec95468f5b714a1142cd9dd1910e14b4812f8ccd`
+GitHub Actions run: `46015019672` (both jobs passed)
 
-- Formatting check: passed.
+- Rust formatting: passed.
+- Shell script syntax checks: passed.
+- LAN credential provisioning smoke test: passed (separate bundles, matching 32-byte PSK, mode 0600, no CA private key in peer bundles).
 - Clippy with warnings denied: passed.
 - Unit tests: 51 passed.
 - Native binary build and documentation build: passed.
