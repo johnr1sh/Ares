@@ -24,6 +24,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt --all -- --check
+      - name: Check shell script syntax
+        run: bash -n scripts/*.sh
+      - name: Smoke test LAN credential provisioning
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          bash scripts/provision-lan-pair.sh "$tmp/bundles"
+          test "$(wc -c < "$tmp/bundles/a/session.key")" -eq 32
+          cmp "$tmp/bundles/a/session.key" "$tmp/bundles/b/session.key"
+          test "$(stat -c '%a' "$tmp/bundles/a/session.key")" = 600
+          test "$(stat -c '%a' "$tmp/bundles/b/session.key")" = 600
+          test ! -e "$tmp/bundles/a/ca.key"
+          test ! -e "$tmp/bundles/b/ca.key"
+          test "$(wc -c < "$tmp/bundles/a/peer.pin")" -eq 65
+          test "$(wc -c < "$tmp/bundles/b/peer.pin")" -eq 65
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
