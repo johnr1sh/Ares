@@ -32,6 +32,12 @@ jobs:
         run: cargo build --bin ares-peer
       - name: Build documentation
         run: cargo doc --no-deps --all-features
+      - name: Upload resolved dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: ares-cargo-lockfile
+          path: Cargo.lock
+          if-no-files-found: error
 
   directional-packet-drop:
     name: Real directional packet-drop proof
