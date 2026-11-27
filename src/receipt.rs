@@ -452,6 +452,30 @@ mod tests {
     }
 
     #[test]
+    fn missing_reverse_direction_evidence_is_not_misreported_as_one_way() {
+        let mut session = BidirectionalDelivery::new(policy()).unwrap();
+        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
+        session.direction_mut(Direction::AToB).record_remote_missing(1).unwrap();
+        session.direction_mut(Direction::AToB).record_sent(2).unwrap();
+        session.direction_mut(Direction::AToB).record_remote_missing(2).unwrap();
+
+        session.direction_mut(Direction::BToA).record_sent(1).unwrap();
+        assert_eq!(session.state(), SessionState::Degraded);
+    }
+
+    #[test]
+    fn two_explicitly_failed_directions_are_unavailable() {
+        let mut session = BidirectionalDelivery::new(policy()).unwrap();
+        for direction in [Direction::AToB, Direction::BToA] {
+            session.direction_mut(direction).record_sent(1).unwrap();
+            session.direction_mut(direction).record_remote_missing(1).unwrap();
+            session.direction_mut(direction).record_sent(2).unwrap();
+            session.direction_mut(direction).record_remote_missing(2).unwrap();
+        }
+        assert_eq!(session.state(), SessionState::Unavailable);
+    }
+
+    #[test]
     fn one_direction_receipt_does_not_make_session_healthy() {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
         session.direction_mut(Direction::AToB).record_sent(1).unwrap();
