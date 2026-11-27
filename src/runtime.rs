@@ -8,7 +8,7 @@
 
 use crate::{
     decode_frame, encode_frame, BidirectionalDelivery, Direction, DirectionState, MessageKind,
-    ReceiptPolicy, SessionState,
+    DirectionHealth, ReceiptPolicy, SessionHealth, SessionState,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chacha20poly1305::{
@@ -155,18 +155,42 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
 
     let monitor_delivery = Arc::clone(&delivery);
     let monitor_role = config.local_is_a;
+    let freshness_timeout = config.observation_timeout.saturating_mul(3);
     tokio::spawn(async move {
         let mut ticker = time::interval(Duration::from_secs(1));
+        let mut last_confirmed = [0_u64; 2];
+        let mut last_positive = [time::Instant::now(); 2];
         loop {
             ticker.tick().await;
             if let Ok(state) = monitor_delivery.lock() {
-                let (session, a_to_b, b_to_a) = session_snapshot(&state);
+                let now = time::Instant::now();
+                let mut directional = [
+                    state.direction(Direction::AToB).state(),
+                    state.direction(Direction::BToA).state(),
+                ];
+                for (index, direction) in [Direction::AToB, Direction::BToA].into_iter().enumerate() {
+                    let confirmed = state.direction(direction).confirmed_received();
+                    if confirmed > last_confirmed[index] {
+                        last_confirmed[index] = confirmed;
+                        last_positive[index] = now;
+                    } else if directional[index] == crate::DirectionState::Healthy
+                        && now.duration_since(last_positive[index]) >= freshness_timeout
+                    {
+                        // Positive evidence expires. Silence on the reverse report
+                        // path is not proof of failure, so downgrade to Degraded.
+                        directional[index] = crate::DirectionState::Degraded;
+                    }
+                }
+                let session = SessionHealth {
+                    a_to_b: DirectionHealth { state: directional[0], ..DirectionHealth::default() },
+                    b_to_a: DirectionHealth { state: directional[1], ..DirectionHealth::default() },
+                }.state();
                 println!(
                     "ARES_STATE local={} session={:?} a_to_b={:?} b_to_a={:?}",
                     local_name(monitor_role),
                     session,
-                    a_to_b,
-                    b_to_a
+                    directional[0],
+                    directional[1]
                 );
             }
         }

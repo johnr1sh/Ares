@@ -70,18 +70,57 @@ if ! grep -q 'session=BidirectionalHealthy' "$A_LOG" || ! grep -q 'session=Bidir
   exit 1
 fi
 
-echo "Applying 100% egress packet loss to A's veth (A -> B only)..."
+wait_for_state() {
+  local logfile="$1"
+  local expected="$2"
+  local description="$3"
+  local attempts="${4:-25}"
+  for _ in $(seq 1 "$attempts"); do
+    local latest
+    latest="$(grep 'ARES_STATE' "$logfile" | tail -n 1 || true)"
+    if [[ "$latest" == *"$expected"* ]]; then
+      echo "PASS: $description"
+      echo "$latest"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "FAIL: $description; last state was:" >&2
+  grep 'ARES_STATE' "$logfile" | tail -n 3 >&2 || true
+  return 1
+}
+
+wait_for_both_healthy() {
+  wait_for_state "$A_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy' "$1 (A)" 30
+  wait_for_state "$B_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy' "$1 (B)" 30
+}
+
+echo "Scenario 1: drop A -> B only..."
 ip netns exec ares-a tc qdisc add dev ares-va root netem loss 100%
+wait_for_state "$A_LOG" 'session=OneWay a_to_b=Failed b_to_a=Healthy' "A localizes A -> B failure"
 
-for _ in $(seq 1 25); do
-  if grep -q 'session=OneWay a_to_b=Failed b_to_a=Healthy' "$A_LOG"; then
-    echo "VALIDATED: A detected A->B failure while B->A remained receiver-confirmed healthy."
-    grep 'session=OneWay a_to_b=Failed b_to_a=Healthy' "$A_LOG" | tail -n 1
-    exit 0
-  fi
-  sleep 1
-done
+echo "Restore A -> B and verify recovery..."
+ip netns exec ares-a tc qdisc del dev ares-va root
+wait_for_both_healthy "recovery after A -> B impairment"
 
-echo "Packet-drop classification was not observed. Logs follow:" >&2
-cat "$A_LOG" "$B_LOG" >&2
-exit 1
+echo "Scenario 2: drop B -> A only..."
+ip netns exec ares-b tc qdisc add dev ares-vb root netem loss 100%
+wait_for_state "$B_LOG" 'session=OneWay a_to_b=Healthy b_to_a=Failed' "B localizes B -> A failure"
+wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed' "A downgrades stale reverse-path evidence"
+
+echo "Restore B -> A and verify recovery..."
+ip netns exec ares-b tc qdisc del dev ares-vb root
+wait_for_both_healthy "recovery after B -> A impairment"
+
+echo "Scenario 3: blackhole both directions..."
+ip netns exec ares-a tc qdisc add dev ares-va root netem loss 100%
+ip netns exec ares-b tc qdisc add dev ares-vb root netem loss 100%
+wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed' "A reports degraded under bidirectional blackhole"
+wait_for_state "$B_LOG" 'session=Degraded a_to_b=Failed b_to_a=Degraded' "B reports degraded under bidirectional blackhole"
+
+echo "Restore both directions and verify recovery..."
+ip netns exec ares-a tc qdisc del dev ares-va root
+ip netns exec ares-b tc qdisc del dev ares-vb root
+wait_for_both_healthy "recovery after bidirectional blackhole"
+
+echo "VALIDATED: mirrored one-way loss, bidirectional blackhole ambiguity, and recovery."
