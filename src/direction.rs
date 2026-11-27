@@ -8,8 +8,9 @@ pub enum Direction {
 }
 
 /// Health state for one direction of a peer session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum DirectionState {
+    #[default]
     Unknown,
     Starting,
     Healthy,
@@ -28,11 +29,6 @@ pub struct DirectionHealth {
     pub acknowledgements_received: u64,
 }
 
-impl Default for DirectionState {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransitionError {

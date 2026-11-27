@@ -263,14 +263,9 @@ async fn receive_loop(
     let (mut reader, _writer) = tokio::io::split(stream);
     let (frame_tx, mut frame_rx) = mpsc::channel::<Vec<u8>>(64);
     tokio::spawn(async move {
-        loop {
-            match read_frame(&mut reader).await {
-                Ok(frame) => {
-                    if frame_tx.send(frame).await.is_err() {
-                        break;
-                    }
-                }
-                Err(_) => break,
+        while let Ok(frame) = read_frame(&mut reader).await {
+            if frame_tx.send(frame).await.is_err() {
+                break;
             }
         }
     });
