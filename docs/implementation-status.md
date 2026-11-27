@@ -32,7 +32,7 @@ This page separates working code from design intent. It is updated with the code
 
 1. **Gate A — compile and unit tests:** current primitives must pass formatting, lint, unit, and documentation tests in CI.
 2. **Gate B — authenticated transport:** select and pin a maintained transport/TLS implementation; prove mutual peer authentication and encrypted two-process data exchange.
-3. **Gate C — directional proof:** add endpoint receipt reporting and deterministic A→B-only, B→A-only, and bidirectional fault injection.
+3. **Gate C — directional proof:** wire the delivery ledger to authenticated endpoint receipt reports and deterministic A→B-only, B→A-only, and bidirectional network fault injection. The ledger API alone does not pass this gate.
 4. **Gate D — offline LAN:** demonstrate session setup and continued communication with internet disabled on documented devices and topology.
 5. **Gate E — reliability claim:** compare against a pinned WebRTC baseline using identical hardware, topology, impairment, workload, and observation windows. Publish absolute rates and confidence intervals.
 
