@@ -14,7 +14,8 @@ mod session;
 
 pub use direction::{Direction, DirectionHealth, DirectionState, TransitionError};
 pub use receipt::{
-    DeliveryLedger, ReceiptError, ReceiptPolicy, ReceiptPolicyError, MAX_PENDING_RECEIPTS,
+    BidirectionalDelivery, DeliveryLedger, ReceiptError, ReceiptPolicy, ReceiptPolicyError,
+    MAX_PENDING_RECEIPTS,
 };
 pub use probe::{
     ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker, MAX_OUTSTANDING_PROBES,
