@@ -15,7 +15,10 @@ impl fmt::Display for ReplayError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Duplicate { sequence } => write!(f, "duplicate sequence number: {sequence}"),
-            Self::TooOld { sequence, highest_seen } => write!(
+            Self::TooOld {
+                sequence,
+                highest_seen,
+            } => write!(
                 f,
                 "sequence {sequence} is outside the replay window (highest {highest_seen})"
             ),

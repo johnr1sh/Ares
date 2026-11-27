@@ -8,24 +8,22 @@
 //! discovery, media, or a production-ready session runtime.
 
 mod direction;
-mod receipt;
 mod probe;
 mod protocol;
+mod receipt;
 mod replay;
 mod runtime;
 mod session;
 
 pub use direction::{Direction, DirectionHealth, DirectionState, TransitionError};
-pub use receipt::{
-    BidirectionalDelivery, DeliveryLedger, ReceiptError, ReceiptPolicy, ReceiptPolicyError,
-    MAX_PENDING_RECEIPTS,
-};
-pub use probe::{
-    ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker, MAX_OUTSTANDING_PROBES,
-};
+pub use probe::{ProbeError, ProbePolicy, ProbePolicyError, ProbeTracker, MAX_OUTSTANDING_PROBES};
 pub use protocol::{
     decode_frame, encode_frame, Frame, FrameError, MessageKind, FRAME_MAGIC, HEADER_LEN,
     MAX_PAYLOAD_LEN, PROTOCOL_VERSION,
+};
+pub use receipt::{
+    BidirectionalDelivery, DeliveryLedger, ReceiptError, ReceiptPolicy, ReceiptPolicyError,
+    MAX_PENDING_RECEIPTS,
 };
 pub use replay::{ReplayError, ReplayWindow, REPLAY_WINDOW_BITS};
 pub use runtime::{run_peer, session_snapshot, PeerConfig};

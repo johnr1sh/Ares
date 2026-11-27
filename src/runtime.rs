@@ -7,8 +7,8 @@
 //! configured SHA-256 leaf-certificate pins bind the session to exact peers.
 
 use crate::{
-    decode_frame, encode_frame, BidirectionalDelivery, Direction, DirectionState,
-    MessageKind, ReceiptPolicy, SessionState, HEADER_LEN, MAX_PAYLOAD_LEN,
+    decode_frame, encode_frame, BidirectionalDelivery, Direction, DirectionState, MessageKind,
+    ReceiptPolicy, SessionState, HEADER_LEN, MAX_PAYLOAD_LEN,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use sha2::{Digest, Sha256};
@@ -54,9 +54,7 @@ pub struct PeerConfig {
 }
 
 pub async fn run_peer(config: PeerConfig) -> Result<()> {
-    if config.probe_interval.is_zero()
-        || config.observation_timeout <= config.probe_interval
-    {
+    if config.probe_interval.is_zero() || config.observation_timeout <= config.probe_interval {
         bail!("observation timeout must exceed a non-zero probe interval");
     }
 
@@ -79,7 +77,10 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
                 let (session, a_to_b, b_to_a) = session_snapshot(&state);
                 println!(
                     "ARES_STATE local={} session={:?} a_to_b={:?} b_to_a={:?}",
-                    local_name(monitor_role), session, a_to_b, b_to_a
+                    local_name(monitor_role),
+                    session,
+                    a_to_b,
+                    b_to_a
                 );
             }
         }
@@ -161,7 +162,10 @@ async fn accept_loop(
             }
             .await;
             if let Err(error) = result {
-                eprintln!("ARES_INBOUND_CLOSED peer={} error={error:#}", peer_id_for_log);
+                eprintln!(
+                    "ARES_INBOUND_CLOSED peer={} error={error:#}",
+                    peer_id_for_log
+                );
             }
         });
     }

@@ -58,7 +58,10 @@ impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TruncatedHeader { actual, required } => {
-                write!(f, "truncated frame header: got {actual} bytes, need {required}")
+                write!(
+                    f,
+                    "truncated frame header: got {actual} bytes, need {required}"
+                )
             }
             Self::InvalidMagic => write!(f, "invalid frame magic"),
             Self::UnsupportedVersion(version) => {
@@ -72,7 +75,10 @@ impl fmt::Display for FrameError {
                 write!(f, "payload too large: {actual} bytes, maximum is {maximum}")
             }
             Self::PayloadLengthMismatch { declared, actual } => {
-                write!(f, "payload length mismatch: declared {declared}, received {actual}")
+                write!(
+                    f,
+                    "payload length mismatch: declared {declared}, received {actual}"
+                )
             }
         }
     }
@@ -141,12 +147,9 @@ pub fn decode_frame(bytes: &[u8]) -> Result<Frame<'_>, FrameError> {
     session_id.copy_from_slice(&bytes[8..24]);
 
     let sequence = u64::from_be_bytes([
-        bytes[24], bytes[25], bytes[26], bytes[27],
-        bytes[28], bytes[29], bytes[30], bytes[31],
+        bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31],
     ]);
-    let declared_len = u32::from_be_bytes([
-        bytes[32], bytes[33], bytes[34], bytes[35],
-    ]) as usize;
+    let declared_len = u32::from_be_bytes([bytes[32], bytes[33], bytes[34], bytes[35]]) as usize;
 
     if declared_len > MAX_PAYLOAD_LEN {
         return Err(FrameError::PayloadTooLarge {
@@ -229,10 +232,7 @@ mod tests {
 
         encoded[5] = MessageKind::Probe as u8;
         encoded[7] = 1;
-        assert_eq!(
-            decode_frame(&encoded),
-            Err(FrameError::ReservedFlagsSet(1))
-        );
+        assert_eq!(decode_frame(&encoded), Err(FrameError::ReservedFlagsSet(1)));
     }
 
     #[test]

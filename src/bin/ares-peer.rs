@@ -34,10 +34,9 @@ async fn run() -> anyhow::Result<()> {
     }
     let bind_addr = SocketAddr::from_str(&args[2])?;
     let peer_addr = SocketAddr::from_str(&args[3])?;
-    let expected_peer_sha256 = decode_hex::<32>(&args[8], "peer SHA-256 fingerprint")
-        .map_err(anyhow::Error::msg)?;
-    let session_id = decode_hex::<16>(&args[9], "session id")
-        .map_err(anyhow::Error::msg)?;
+    let expected_peer_sha256 =
+        decode_hex::<32>(&args[8], "peer SHA-256 fingerprint").map_err(anyhow::Error::msg)?;
+    let session_id = decode_hex::<16>(&args[9], "session id").map_err(anyhow::Error::msg)?;
     let config = PeerConfig {
         local_is_a,
         bind_addr,

@@ -221,8 +221,7 @@ impl DeliveryLedger {
         self.consecutive_missing = self.consecutive_missing.saturating_add(1);
         self.recovery_successes = 0;
 
-        if recovery_was_in_progress
-            || self.consecutive_missing >= self.policy.failed_after_missing
+        if recovery_was_in_progress || self.consecutive_missing >= self.policy.failed_after_missing
         {
             self.state = DirectionState::Failed;
         } else if self.consecutive_missing >= self.policy.degraded_after_missing {
@@ -402,7 +401,10 @@ mod tests {
             })
         );
         ledger.record_sent(6).unwrap();
-        assert_eq!(ledger.record_sent(7), Err(ReceiptError::PendingLimitReached));
+        assert_eq!(
+            ledger.record_sent(7),
+            Err(ReceiptError::PendingLimitReached)
+        );
         ledger.record_remote_received(5).unwrap();
         ledger.record_sent(7).unwrap();
     }
@@ -430,38 +432,74 @@ mod tests {
         assert_eq!(ledger.state(), DirectionState::Closed);
         assert_eq!(ledger.pending_count(), 0);
         assert_eq!(ledger.record_sent(2), Err(ReceiptError::Closed));
-        assert_eq!(
-            ledger.record_remote_received(1),
-            Err(ReceiptError::Closed)
-        );
+        assert_eq!(ledger.record_remote_received(1), Err(ReceiptError::Closed));
     }
 
     #[test]
     fn bidirectional_delivery_detects_confirmed_one_way_failure() {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
 
-        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
-        session.direction_mut(Direction::AToB).record_remote_missing(1).unwrap();
-        session.direction_mut(Direction::AToB).record_sent(2).unwrap();
-        session.direction_mut(Direction::AToB).record_remote_missing(2).unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_sent(1)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_remote_missing(1)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_sent(2)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_remote_missing(2)
+            .unwrap();
 
-        session.direction_mut(Direction::BToA).record_sent(1).unwrap();
-        session.direction_mut(Direction::BToA).record_remote_received(1).unwrap();
+        session
+            .direction_mut(Direction::BToA)
+            .record_sent(1)
+            .unwrap();
+        session
+            .direction_mut(Direction::BToA)
+            .record_remote_received(1)
+            .unwrap();
 
         assert_eq!(session.state(), SessionState::OneWay);
-        assert_eq!(session.direction(Direction::AToB).state(), DirectionState::Failed);
-        assert_eq!(session.direction(Direction::BToA).state(), DirectionState::Healthy);
+        assert_eq!(
+            session.direction(Direction::AToB).state(),
+            DirectionState::Failed
+        );
+        assert_eq!(
+            session.direction(Direction::BToA).state(),
+            DirectionState::Healthy
+        );
     }
 
     #[test]
     fn missing_reverse_direction_evidence_is_not_misreported_as_one_way() {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
-        session.direction_mut(Direction::AToB).record_sent(1).unwrap();
-        session.direction_mut(Direction::AToB).record_remote_missing(1).unwrap();
-        session.direction_mut(Direction::AToB).record_sent(2).unwrap();
-        session.direction_mut(Direction::AToB).record_remote_missing(2).unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_sent(1)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_remote_missing(1)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_sent(2)
+            .unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_remote_missing(2)
+            .unwrap();
 
-        session.direction_mut(Direction::BToA).record_sent(1).unwrap();
+        session
+            .direction_mut(Direction::BToA)
+            .record_sent(1)
+            .unwrap();
         assert_eq!(session.state(), SessionState::Degraded);
     }
 
@@ -470,9 +508,15 @@ mod tests {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
         for direction in [Direction::AToB, Direction::BToA] {
             session.direction_mut(direction).record_sent(1).unwrap();
-            session.direction_mut(direction).record_remote_missing(1).unwrap();
+            session
+                .direction_mut(direction)
+                .record_remote_missing(1)
+                .unwrap();
             session.direction_mut(direction).record_sent(2).unwrap();
-            session.direction_mut(direction).record_remote_missing(2).unwrap();
+            session
+                .direction_mut(direction)
+                .record_remote_missing(2)
+                .unwrap();
         }
         assert_eq!(session.state(), SessionState::Unavailable);
     }
@@ -481,7 +525,10 @@ mod tests {
     fn one_direction_receipt_does_not_make_session_healthy() {
         let mut session = BidirectionalDelivery::new(policy()).unwrap();
         session.direction_mut(Direction::AToB).record_sent(1).unwrap();
-        session.direction_mut(Direction::AToB).record_remote_received(1).unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_remote_received(1)
+            .unwrap();
         assert_eq!(session.state(), SessionState::Degraded);
     }
 
@@ -534,7 +581,10 @@ mod tests {
         assert_eq!(inbound.state(), DirectionState::Degraded);
         inbound.record_observed_missing(2).unwrap();
         assert_eq!(inbound.state(), DirectionState::Failed);
-        session.direction_mut(Direction::AToB).record_observed_received(1).unwrap();
+        session
+            .direction_mut(Direction::AToB)
+            .record_observed_received(1)
+            .unwrap();
         assert_eq!(session.state(), SessionState::OneWay);
     }
 
@@ -544,8 +594,10 @@ mod tests {
         ledger.record_observed_missing(2).unwrap();
         assert_eq!(
             ledger.record_observed_received(1),
-            Err(ReceiptError::ReportSequenceNotIncreasing { previous: 2, next: 1 })
+            Err(ReceiptError::ReportSequenceNotIncreasing {
+                previous: 2,
+                next: 1
+            })
         );
     }
-
 }

@@ -49,9 +49,12 @@ impl fmt::Display for ProbePolicyError {
         match self {
             Self::ZeroAcknowledgementTimeout => {
                 write!(f, "acknowledgement timeout must be non-zero")
-            },
+            }
             Self::InvalidMissThresholds => {
-                write!(f, "failure threshold must be greater than degradation threshold")
+                write!(
+                    f,
+                    "failure threshold must be greater than degradation threshold"
+                )
             }
             Self::ZeroOutstandingLimit => write!(f, "outstanding probe limit must be non-zero"),
             Self::OutstandingLimitTooLarge { requested, maximum } => write!(
@@ -78,7 +81,10 @@ impl fmt::Display for ProbeError {
         match self {
             Self::Closed => write!(f, "probe tracker is closed"),
             Self::SequenceNotIncreasing { previous, next } => {
-                write!(f, "probe sequence must increase: previous {previous}, next {next}")
+                write!(
+                    f,
+                    "probe sequence must increase: previous {previous}, next {next}"
+                )
             }
             Self::OutstandingLimitReached => write!(f, "outstanding probe limit reached"),
             Self::UnknownOrExpiredSequence(sequence) => {
@@ -334,7 +340,9 @@ mod tests {
             DirectionState::Degraded
         );
 
-        tracker.record_sent(2, now + Duration::from_secs(2)).unwrap();
+        tracker
+            .record_sent(2, now + Duration::from_secs(2))
+            .unwrap();
         tracker.record_acknowledgement(2).unwrap();
         assert_eq!(tracker.state(), DirectionState::Healthy);
     }
