@@ -206,7 +206,7 @@ impl ProbeTracker {
             .iter()
             .position(|probe| probe.sequence == sequence)
             .ok_or(ProbeError::UnknownOrExpiredSequence(sequence))?;
-        self.outstanding.remove(position);
+        let _ = self.outstanding.remove(position);
 
         self.acknowledgements_received = self.acknowledgements_received.saturating_add(1);
         self.consecutive_misses = 0;
@@ -241,7 +241,7 @@ impl ProbeTracker {
             let overdue = now.saturating_duration_since(self.outstanding[index].sent_at)
                 >= self.policy.acknowledgement_timeout;
             if overdue {
-                self.outstanding.remove(index);
+                let _ = self.outstanding.remove(index);
                 self.missed_probes = self.missed_probes.saturating_add(1);
                 self.consecutive_misses = self.consecutive_misses.saturating_add(1);
             } else {
@@ -320,6 +320,21 @@ mod tests {
         tracker.record_acknowledgement(1).unwrap();
         assert_eq!(tracker.state(), DirectionState::Healthy);
         assert_eq!(tracker.acknowledgements_received(), 1);
+    }
+
+    #[test]
+    fn one_missed_probe_degrades_and_a_fresh_ack_restores_health() {
+        let now = Instant::now();
+        let mut tracker = ProbeTracker::new(policy()).unwrap();
+        tracker.record_sent(1, now).unwrap();
+        assert_eq!(
+            tracker.evaluate(now + Duration::from_secs(1)),
+            DirectionState::Degraded
+        );
+
+        tracker.record_sent(2, now + Duration::from_secs(2)).unwrap();
+        tracker.record_acknowledgement(2).unwrap();
+        assert_eq!(tracker.state(), DirectionState::Healthy);
     }
 
     #[test]
