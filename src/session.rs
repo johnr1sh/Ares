@@ -34,6 +34,10 @@ impl SessionHealth {
     }
 
     /// Derive aggregate health without assuming direction independence.
+    ///
+    /// One healthy direction is not enough for a healthy session. A confirmed
+    /// failed/closed opposite direction is reported as OneWay; incomplete or
+    /// recovering evidence remains Degraded rather than being called healthy.
     pub fn state(&self) -> SessionState {
         use DirectionState as D;
         use SessionState as S;
@@ -57,6 +61,9 @@ impl SessionHealth {
         }
         if matches!(a, D::Failed | D::Closed) && matches!(b, D::Failed | D::Closed) {
             return S::Unavailable;
+        }
+        if a == D::Healthy || b == D::Healthy {
+            return S::Degraded;
         }
         if a == D::Starting || b == D::Starting {
             return S::Starting;
@@ -97,6 +104,29 @@ mod tests {
         set(&mut health, Direction::AToB, DirectionState::Failed);
         set(&mut health, Direction::BToA, DirectionState::Failed);
         assert_eq!(health.state(), SessionState::Unavailable);
+    }
+
+    #[test]
+    fn both_closed_directions_close_the_session() {
+        let mut health = SessionHealth::default();
+        set(&mut health, Direction::AToB, DirectionState::Closed);
+        set(&mut health, Direction::BToA, DirectionState::Closed);
+        assert_eq!(health.state(), SessionState::Closed);
+    }
+
+    #[test]
+    fn healthy_and_starting_is_degraded_not_healthy_or_starting() {
+        let mut health = SessionHealth::default();
+        set(&mut health, Direction::AToB, DirectionState::Healthy);
+        set(&mut health, Direction::BToA, DirectionState::Starting);
+        assert_eq!(health.state(), SessionState::Degraded);
+    }
+
+    #[test]
+    fn healthy_and_unknown_is_degraded_until_the_other_direction_is_proven() {
+        let mut health = SessionHealth::default();
+        set(&mut health, Direction::AToB, DirectionState::Healthy);
+        assert_eq!(health.state(), SessionState::Degraded);
     }
 
     #[test]
