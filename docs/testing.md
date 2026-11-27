@@ -17,7 +17,7 @@ The Rust tests cover:
 - Replay acceptance, duplicates, bounded reordering, stale values, large sequence jumps, and the u64 boundary.
 - Probe policy validation, bounded in-flight work, strictly increasing sequences, timeout/miss transitions, expired acknowledgements, terminal close, and recovery hysteresis.
 - Receiver-reported delivery evidence: send submission is not delivery, unsolicited reports are rejected, missing reports degrade/fail only their direction, recovery requires consecutive receipts, pending work is bounded, and out-of-order receiver reports are rejected.
-- Bidirectional delivery classification: one direction can be explicitly failed while the opposite direction remains confirmed healthy; one healthy direction alone never marks the session healthy.
+- Bidirectional delivery classification: one direction can be explicitly failed while the opposite direction remains confirmed healthy; one healthy direction alone never marks the session healthy; a failed direction plus an unverified reverse direction is Degraded, not falsely called OneWay; two confirmed failed directions are Unavailable.
 - Replay-window exact 127/128 sequence-distance boundaries and integer overflow edges.
 - Crate-level prohibition of unsafe Rust.
 
