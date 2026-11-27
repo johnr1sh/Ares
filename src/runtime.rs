@@ -121,7 +121,6 @@ impl DirectionalKeys {
     }
 }
 
-
 /// Local expiry policy for evidence that was previously fresh. This layer
 /// never invents a directional failure: silence downgrades to Degraded, and a
 /// stale direction needs multiple fresh positive observations before returning
@@ -194,8 +193,7 @@ impl DirectionEvidenceFreshness {
             && matches!(
                 underlying,
                 DirectionState::Healthy | DirectionState::Failed | DirectionState::Recovering
-            )
-        {
+            ) {
             DirectionState::Degraded
         } else {
             underlying
@@ -916,11 +914,15 @@ mod tests {
         let mut b_to_a = DirectionEvidenceFreshness::default();
 
         assert_eq!(
-            a_to_b.evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2).0,
+            a_to_b
+                .evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2)
+                .0,
             DirectionState::Healthy
         );
         assert_eq!(
-            b_to_a.evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2).0,
+            b_to_a
+                .evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2)
+                .0,
             DirectionState::Healthy
         );
 
@@ -944,5 +946,4 @@ mod tests {
         .state();
         assert_eq!(session, SessionState::Degraded);
     }
-
 }
