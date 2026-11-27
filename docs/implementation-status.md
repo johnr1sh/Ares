@@ -12,7 +12,7 @@ This page separates working code from design intent. It is updated with the code
 | Session state | Implemented | Derived from two independent direction records; conservative when evidence is incomplete |
 | Frame codec | Implemented | Version-1 bounded encoder/decoder; no authentication or encryption |
 | Replay window | Implemented | Fixed 128-sequence window; caller must authenticate before updating |
-| Probe tracker | Implemented | Monotonic deadlines, bounded in-flight probes, miss thresholds, recovery hysteresis |
+| Probe tracker | Implemented | Monotonic deadlines, 1,024 hard maximum in-flight probes, miss thresholds, recovery hysteresis |
 | CI | Configured | rustfmt, Clippy with warnings denied, and cargo tests |
 
 ## Not implemented
