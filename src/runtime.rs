@@ -121,6 +121,94 @@ impl DirectionalKeys {
     }
 }
 
+
+/// Local expiry policy for evidence that was previously fresh. This layer
+/// never invents a directional failure: silence downgrades to Degraded, and a
+/// stale direction needs multiple fresh positive observations before returning
+/// to Healthy.
+#[derive(Debug, Clone, Copy, Default)]
+struct DirectionEvidenceFreshness {
+    last_positive_count: u64,
+    last_missing_count: u64,
+    last_positive_at: Option<time::Instant>,
+    last_missing_at: Option<time::Instant>,
+    last_any_at: Option<time::Instant>,
+    stale: bool,
+    recovery_successes: u32,
+}
+
+impl DirectionEvidenceFreshness {
+    fn evaluate(
+        &mut self,
+        underlying: DirectionState,
+        positive_count: u64,
+        missing_count: u64,
+        now: time::Instant,
+        stale_after: Duration,
+        recovery_required: u32,
+    ) -> (DirectionState, bool) {
+        let new_positive = positive_count.saturating_sub(self.last_positive_count);
+        let new_missing = missing_count.saturating_sub(self.last_missing_count);
+        self.last_positive_count = self.last_positive_count.max(positive_count);
+        self.last_missing_count = self.last_missing_count.max(missing_count);
+
+        if new_positive > 0 {
+            self.last_positive_at = Some(now);
+            self.last_any_at = Some(now);
+            if self.stale {
+                self.recovery_successes = self
+                    .recovery_successes
+                    .saturating_add(new_positive.min(u64::from(u32::MAX)) as u32);
+                if self.recovery_successes >= recovery_required {
+                    self.stale = false;
+                    self.recovery_successes = 0;
+                }
+            }
+        }
+
+        if new_missing > 0 {
+            self.last_missing_at = Some(now);
+            self.last_any_at = Some(now);
+            // Fresh receiver-observed absence refreshes negative evidence only.
+            self.stale = false;
+            self.recovery_successes = 0;
+        }
+
+        let relevant_time = match underlying {
+            DirectionState::Healthy | DirectionState::Recovering => self.last_positive_at,
+            DirectionState::Failed => self.last_missing_at,
+            DirectionState::Degraded => self.last_any_at,
+            DirectionState::Unknown | DirectionState::Starting | DirectionState::Closed => None,
+        };
+
+        if !self.stale
+            && relevant_time
+                .map(|observed| now.duration_since(observed) >= stale_after)
+                .unwrap_or(false)
+        {
+            self.stale = true;
+            self.recovery_successes = 0;
+        }
+
+        let effective = if self.stale
+            && matches!(
+                underlying,
+                DirectionState::Healthy | DirectionState::Failed | DirectionState::Recovering
+            )
+        {
+            DirectionState::Degraded
+        } else {
+            underlying
+        };
+        let fresh = !self.stale
+            && relevant_time
+                .map(|observed| now.duration_since(observed) < stale_after)
+                .unwrap_or(false);
+
+        (effective, fresh)
+    }
+}
+
 fn derive_key(shared: &[u8; 32], session_id: &[u8; 16], label: &[u8]) -> Result<[u8; 32]> {
     let hkdf = Hkdf::<Sha256>::new(Some(session_id), shared);
     let mut key = [0_u8; 32];
@@ -156,32 +244,30 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
     let monitor_delivery = Arc::clone(&delivery);
     let monitor_role = config.local_is_a;
     let freshness_timeout = config.observation_timeout.saturating_mul(3);
+    let recovery_required = config.receipt_policy.recovery_successes;
     tokio::spawn(async move {
         let mut ticker = time::interval(Duration::from_secs(1));
-        let mut last_confirmed = [0_u64; 2];
-        let mut last_positive = [time::Instant::now(); 2];
+        let mut freshness = [DirectionEvidenceFreshness::default(); 2];
         loop {
             ticker.tick().await;
             if let Ok(state) = monitor_delivery.lock() {
                 let now = time::Instant::now();
-                let mut directional = [
-                    state.direction(Direction::AToB).state(),
-                    state.direction(Direction::BToA).state(),
-                ];
-                for (index, direction) in [Direction::AToB, Direction::BToA].into_iter().enumerate()
-                {
-                    let confirmed = state.direction(direction).confirmed_received();
-                    if confirmed > last_confirmed[index] {
-                        last_confirmed[index] = confirmed;
-                        last_positive[index] = now;
-                    } else if directional[index] == crate::DirectionState::Healthy
-                        && now.duration_since(last_positive[index]) >= freshness_timeout
-                    {
-                        // Positive evidence expires. Silence on the reverse report
-                        // path is not proof of failure, so downgrade to Degraded.
-                        directional[index] = crate::DirectionState::Degraded;
-                    }
+                let directions = [Direction::AToB, Direction::BToA];
+                let mut directional = [DirectionState::Unknown; 2];
+                let mut evidence_fresh = [false; 2];
+
+                for (index, direction) in directions.into_iter().enumerate() {
+                    let ledger = state.direction(direction);
+                    (directional[index], evidence_fresh[index]) = freshness[index].evaluate(
+                        ledger.state(),
+                        ledger.confirmed_received(),
+                        ledger.confirmed_missing(),
+                        now,
+                        freshness_timeout,
+                        recovery_required,
+                    );
                 }
+
                 let session = SessionHealth {
                     a_to_b: DirectionHealth {
                         state: directional[0],
@@ -194,11 +280,13 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
                 }
                 .state();
                 println!(
-                    "ARES_STATE local={} session={:?} a_to_b={:?} b_to_a={:?}",
+                    "ARES_STATE local={} session={:?} a_to_b={:?} b_to_a={:?} a_to_b_fresh={} b_to_a_fresh={}",
                     local_name(monitor_role),
                     session,
                     directional[0],
-                    directional[1]
+                    directional[1],
+                    evidence_fresh[0],
+                    evidence_fresh[1]
                 );
             }
         }
@@ -741,4 +829,120 @@ mod tests {
             keys.get(Direction::BToA, MessageKind::Probe)
         );
     }
+    #[test]
+    fn stale_healthy_evidence_requires_two_new_confirmations_to_recover() {
+        let now = time::Instant::now();
+        let stale_after = Duration::from_secs(3);
+        let mut freshness = DirectionEvidenceFreshness::default();
+
+        assert_eq!(
+            freshness.evaluate(DirectionState::Healthy, 4, 0, now, stale_after, 2),
+            (DirectionState::Healthy, true)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                4,
+                0,
+                now + stale_after + Duration::from_millis(1),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, false)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                5,
+                0,
+                now + stale_after + Duration::from_millis(200),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, false)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                6,
+                0,
+                now + stale_after + Duration::from_millis(400),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Healthy, true)
+        );
+    }
+
+    #[test]
+    fn stale_failure_evidence_downgrades_and_fresh_missing_reports_restore_failure() {
+        let now = time::Instant::now();
+        let stale_after = Duration::from_secs(3);
+        let mut freshness = DirectionEvidenceFreshness::default();
+
+        assert_eq!(
+            freshness.evaluate(DirectionState::Failed, 0, 3, now, stale_after, 2),
+            (DirectionState::Failed, true)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Failed,
+                0,
+                3,
+                now + stale_after + Duration::from_millis(1),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, false)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Failed,
+                0,
+                4,
+                now + stale_after + Duration::from_millis(200),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Failed, true)
+        );
+    }
+
+    #[test]
+    fn stale_path_is_not_called_one_way_when_the_reverse_path_is_unknown() {
+        let now = time::Instant::now();
+        let stale_after = Duration::from_secs(3);
+        let mut a_to_b = DirectionEvidenceFreshness::default();
+        let mut b_to_a = DirectionEvidenceFreshness::default();
+
+        assert_eq!(
+            a_to_b.evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2).0,
+            DirectionState::Healthy
+        );
+        assert_eq!(
+            b_to_a.evaluate(DirectionState::Healthy, 10, 0, now, stale_after, 2).0,
+            DirectionState::Healthy
+        );
+
+        let later = now + stale_after + Duration::from_millis(1);
+        let a_to_b_state = a_to_b
+            .evaluate(DirectionState::Healthy, 10, 0, later, stale_after, 2)
+            .0;
+        let b_to_a_state = b_to_a
+            .evaluate(DirectionState::Failed, 0, 2, later, stale_after, 2)
+            .0;
+        let session = SessionHealth {
+            a_to_b: DirectionHealth {
+                state: a_to_b_state,
+                ..DirectionHealth::default()
+            },
+            b_to_a: DirectionHealth {
+                state: b_to_a_state,
+                ..DirectionHealth::default()
+            },
+        }
+        .state();
+        assert_eq!(session, SessionState::Degraded);
+    }
+
 }

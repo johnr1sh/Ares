@@ -91,13 +91,13 @@ wait_for_state() {
 }
 
 wait_for_both_healthy() {
-  wait_for_state "$A_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy' "$1 (A)" 30
-  wait_for_state "$B_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy' "$1 (B)" 30
+  wait_for_state "$A_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy a_to_b_fresh=true b_to_a_fresh=true' "$1 (A)" 30
+  wait_for_state "$B_LOG" 'session=BidirectionalHealthy a_to_b=Healthy b_to_a=Healthy a_to_b_fresh=true b_to_a_fresh=true' "$1 (B)" 30
 }
 
 echo "Scenario 1: drop A -> B only..."
 ip netns exec ares-a tc qdisc add dev ares-va root netem loss 100%
-wait_for_state "$A_LOG" 'session=OneWay a_to_b=Failed b_to_a=Healthy' "A localizes A -> B failure"
+wait_for_state "$A_LOG" 'session=OneWay a_to_b=Failed b_to_a=Healthy a_to_b_fresh=true b_to_a_fresh=true' "A localizes A -> B failure"
 
 echo "Restore A -> B and verify recovery..."
 ip netns exec ares-a tc qdisc del dev ares-va root
@@ -105,8 +105,8 @@ wait_for_both_healthy "recovery after A -> B impairment"
 
 echo "Scenario 2: drop B -> A only..."
 ip netns exec ares-b tc qdisc add dev ares-vb root netem loss 100%
-wait_for_state "$B_LOG" 'session=OneWay a_to_b=Healthy b_to_a=Failed' "B localizes B -> A failure"
-wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed' "A downgrades stale reverse-path evidence"
+wait_for_state "$B_LOG" 'session=OneWay a_to_b=Healthy b_to_a=Failed a_to_b_fresh=true b_to_a_fresh=true' "B localizes B -> A failure"
+wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed a_to_b_fresh=false b_to_a_fresh=true' "A downgrades stale reverse-path evidence"
 
 echo "Restore B -> A and verify recovery..."
 ip netns exec ares-b tc qdisc del dev ares-vb root
@@ -115,8 +115,8 @@ wait_for_both_healthy "recovery after B -> A impairment"
 echo "Scenario 3: blackhole both directions..."
 ip netns exec ares-a tc qdisc add dev ares-va root netem loss 100%
 ip netns exec ares-b tc qdisc add dev ares-vb root netem loss 100%
-wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed' "A reports degraded under bidirectional blackhole"
-wait_for_state "$B_LOG" 'session=Degraded a_to_b=Failed b_to_a=Degraded' "B reports degraded under bidirectional blackhole"
+wait_for_state "$A_LOG" 'session=Degraded a_to_b=Degraded b_to_a=Failed a_to_b_fresh=false b_to_a_fresh=true' "A reports degraded under bidirectional blackhole"
+wait_for_state "$B_LOG" 'session=Degraded a_to_b=Failed b_to_a=Degraded a_to_b_fresh=true b_to_a_fresh=false' "B reports degraded under bidirectional blackhole"
 
 echo "Restore both directions and verify recovery..."
 ip netns exec ares-a tc qdisc del dev ares-va root

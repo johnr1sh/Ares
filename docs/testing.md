@@ -20,6 +20,7 @@ The Rust tests cover:
 - Bidirectional delivery classification: one direction can be explicitly failed while the opposite direction remains confirmed healthy; one healthy direction alone never marks the session healthy; a failed direction plus an unverified reverse direction is Degraded, not falsely called OneWay; two confirmed failed directions are Unavailable.
 - Replay-window exact 127/128 sequence-distance boundaries and integer overflow edges.
 - AEAD datagram round trips, ciphertext-tamper rejection, session binding, and per-direction/per-message-kind key separation.
+- Runtime freshness expiry for positive/negative evidence, fresh missing-report handling, and multi-confirmation recovery after stale health.
 - Crate-level prohibition of unsafe Rust.
 
 The repository CI runs formatting, Clippy with warnings denied, and all-target/all-feature tests. A commit is not considered validated until the corresponding Actions run is green.

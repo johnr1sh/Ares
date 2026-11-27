@@ -30,8 +30,8 @@ The runtime expects DER-encoded CA, leaf certificate, and PKCS#8 private key
 files. The leaf certificate must contain the peer's DNS name (a or b) as a
 SAN and permit both clientAuth and serverAuth. Both peers must trust the same
 CA and pin the other peer's exact leaf SHA-256 fingerprint. Both peers must
-also receive the same unique 32-byte session key file and 16-byte session ID over a
-secure provisioning channel. Keep the key file private; do not pass key bytes
+also receive the same unique 32-byte session key file and 16-byte session ID
+through a secure provisioning channel. Keep the key file private; do not pass key bytes
 on the process command line.
 
     ares-peer a 192.0.2.10:41001 192.0.2.11:41001 b ca.der a.der a-key.der <b-cert-sha256> <session-id-hex> <session-key.bin>
@@ -59,6 +59,10 @@ key rotation.
 - Out-of-order and duplicate observations are rejected by the monotonic
   sequence ledgers. The current prototype does not yet include a full UDP
   retransmission/ack-of-ack protocol or a report reorder buffer.
+- Directional evidence expires after three observation timeouts. Stale positive
+  or negative evidence is shown as Degraded rather than asserted as current
+  health/failure. A stale direction requires the configured number of new
+  positive confirmations before returning to Healthy.
 
 The runtime currently carries heartbeats and receipts, not application data,
 audio, or video. It does not yet provide discovery, NAT traversal, relay
@@ -83,8 +87,9 @@ reports:
 
 The CI job runs the expanded network-layer experiment: A→B-only loss,
 B→A-only loss, both-directions-down, and recovery after each impairment. It
-also checks that stale positive evidence expires to Degraded when the return
-report path is unavailable, preventing a false OneWay claim. A passing unit
+also asserts directional freshness indicators and stale recovery hysteresis,
+so old evidence cannot remain Healthy/Failed forever or return to Healthy on
+only one post-outage observation. A passing unit
 test or an application-level drop simulation is not a substitute for this
 experiment.
 
