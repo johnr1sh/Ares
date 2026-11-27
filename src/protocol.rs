@@ -123,7 +123,7 @@ pub fn decode_frame(bytes: &[u8]) -> Result<Frame<'_>, FrameError> {
         });
     }
 
-    if bytes[0..4] != FRAME_MAGIC {
+    if bytes.get(0..4) != Some(&FRAME_MAGIC[..]) {
         return Err(FrameError::InvalidMagic);
     }
 
