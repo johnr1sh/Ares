@@ -13,6 +13,8 @@ This page separates working code from design intent. It is updated with the code
 | Frame codec | Implemented | Version-1 bounded encoder/decoder; no authentication or encryption |
 | Replay window | Implemented | Fixed 128-sequence window; caller must authenticate before updating |
 | Probe tracker | Implemented | Monotonic deadlines, 1,024 hard maximum in-flight probes, miss thresholds, recovery hysteresis |
+| Delivery evidence | Implemented | Per-direction bounded receipt ledger; only authenticated receiver reports count as delivery/missing evidence |
+| Bidirectional delivery | Implemented | Combines independent directional ledgers; reports OneWay only with positive evidence for the healthy direction and explicit missing reports for the failed direction |
 | CI | Configured | rustfmt, Clippy with warnings denied, and cargo tests |
 
 ## Not implemented
@@ -21,7 +23,7 @@ This page separates working code from design intent. It is updated with the code
 - Mutual peer authentication, pairing, identity persistence, or encrypted application sessions.
 - Session establishment/teardown across two processes.
 - Reliable-stream or deadline-bound datagram APIs.
-- Independent remote receipt telemetry sufficient to attribute every one-way failure.
+- Network transport for remote receipt telemetry; the current ledger API requires an authenticated integration layer to supply receiver reports.
 - LAN discovery, offline-LAN verification, NAT traversal, relay selection, or path migration.
 - Audio/video capture, codecs, rendering, synchronization, or browser runtime.
 - Benchmark evidence, WebRTC baseline comparison, production readiness, or security audit.
