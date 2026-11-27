@@ -1,9 +1,9 @@
-name: Rust CI
+name: ARES Core CI
 
 on:
   push:
-    branches: [main, "feat/**"]
-  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +15,7 @@ jobs:
   test:
     name: Format, lint and test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -27,3 +28,5 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --all-targets --all-features
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
