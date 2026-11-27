@@ -29,7 +29,6 @@ pub struct DirectionHealth {
     pub acknowledgements_received: u64,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransitionError {
     pub from: DirectionState,
