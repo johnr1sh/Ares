@@ -1,8 +1,10 @@
 # Security policy and threat model
 
-## Status
+## Current implementation boundary
 
-ARES is at the architecture/requirements stage. This is not a security certification, audit report, or claim that a secure implementation exists.
+ARES is experimental. The Rust crate contains a bounded frame codec and replay-window helper, but neither provides cryptographic security. The frame decoder does not authenticate a sender, verify an integrity tag, authorize a peer, or encrypt payloads. The replay window must only be updated after message authentication; otherwise an attacker could advance the window and deny valid traffic.
+
+Do not expose the current frame codec directly to an untrusted network or treat a parsed frame as trusted application data. There is no implemented peer authentication or encrypted transport yet. This document is a threat model, not a security certification or audit report.
 
 ## Reporting vulnerabilities
 
@@ -19,7 +21,7 @@ Assume attackers can observe, modify, delay, inject, duplicate, reorder and repl
 1. Authenticate peer identity; discovery is not authentication.
 2. Use established cryptographic protocols and maintained libraries. No custom cipher or home-grown key exchange.
 3. Encrypt and authenticate sensitive application traffic.
-4. Bind identities, protocol version, capabilities and session parameters to the handshake.
+4. Bind identities, protocol version, capabilities and session parameters to the handshake transcript.
 5. Reject replay, downgrade, invalid tags, malformed frames and stale credentials.
 6. Enforce application authorization, not merely transport connection checks.
 7. Bound message sizes, allocations, queues, concurrent handshakes, expensive work and retries.
