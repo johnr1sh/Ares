@@ -50,7 +50,7 @@ A receiver may report a sequence missing only after its own observation deadline
 
 The two ledgers remain independent. A session is classified OneWay only when one direction has explicit receiver-reported missing evidence beyond its configured threshold while the opposite direction has confirmed receiver-reported delivery. If the reverse reporting path is also unavailable, the result remains incomplete/degraded rather than inventing a direction diagnosis.
 
-The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing sequence numbers, rejects unsolicited/duplicate reports, and requires consecutive confirmed receipts to recover from Failed. The integration layer must authenticate the report and enforce its session/direction binding before invoking the API. This crate does not yet implement that network report protocol or cryptographic authentication.
+The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing send and report sequence numbers, rejects unsolicited/duplicate/out-of-order reports, and requires consecutive confirmed receipts to recover from Failed. The integration must deliver receiver reports over an authenticated, ordered control channel or buffer/reorder them before applying them. The integration layer must authenticate the report and enforce its session/direction binding before invoking the API. This crate does not yet implement that network report protocol or cryptographic authentication.
 
 ## Session health
 
