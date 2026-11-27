@@ -1025,5 +1025,4 @@ mod tests {
             (DirectionState::Healthy, true)
         );
     }
-
 }
