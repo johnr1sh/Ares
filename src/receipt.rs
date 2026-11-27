@@ -207,11 +207,14 @@ impl DeliveryLedger {
     /// can attest that it did not observe the sequence.
     pub fn record_remote_missing(&mut self, sequence: u64) -> Result<(), ReceiptError> {
         self.remove_pending(sequence)?;
+        let recovery_was_in_progress = self.state == DirectionState::Recovering;
         self.confirmed_missing = self.confirmed_missing.saturating_add(1);
         self.consecutive_missing = self.consecutive_missing.saturating_add(1);
         self.recovery_successes = 0;
 
-        if self.consecutive_missing >= self.policy.failed_after_missing {
+        if recovery_was_in_progress
+            || self.consecutive_missing >= self.policy.failed_after_missing
+        {
             self.state = DirectionState::Failed;
         } else if self.consecutive_missing >= self.policy.degraded_after_missing {
             self.state = DirectionState::Degraded;
