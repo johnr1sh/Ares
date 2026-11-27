@@ -53,14 +53,14 @@ Evaluate mature options before inventing a transport:
 - WebTransport for browser environments where supported.
 - Native UDP only where platform access and security design justify it.
 
-QUIC alone does not provide local discovery, NAT traversal, codecs/capture, group key management, or browser raw-socket access. Quinn remains a candidate until a runnable authenticated prototype and fault-injection tests validate it.
+QUIC alone does not provide local discovery, NAT traversal, codecs/capture, group key management, or browser raw-socket access. The current native proof of concept uses mutually authenticated TLS for peer identity and PSK-derived AEAD-protected UDP datagrams for heartbeat/receipt telemetry. This is a reliability experiment, not a final transport choice. Quinn remains a candidate for reliable control/data and deadline-bound datagrams, subject to a separate runnable prototype and comparative fault-injection evidence.
 
 ## Local-first connection flow
 
 1. Discover or manually enter a peer endpoint on the local network.
 2. Treat the endpoint as untrusted; authenticate using a separately specified trust bootstrap.
 3. Negotiate protocol version and capabilities with downgrade protection.
-4. Establish encrypted transport and bind authenticated identity to the handshake transcript.
+4. Authenticate both peers with mutual TLS; provision a unique session PSK out of band and derive directional AEAD keys. Binding that PSK to a formal pairing/handshake transcript remains future work.
 5. Run independent A_TO_B and B_TO_A application-level probes and collect endpoint-side receipt evidence.
 6. Declare usability only according to requested directionality and stream policy.
 7. Continue health probes and privacy-safe telemetry.

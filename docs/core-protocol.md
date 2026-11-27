@@ -50,7 +50,7 @@ A receiver may report a sequence missing only after its own observation deadline
 
 The two ledgers remain independent. A session is classified OneWay only when one direction has explicit receiver-reported missing evidence beyond its configured threshold while the opposite direction has confirmed receiver-reported delivery. If the reverse reporting path is also unavailable, the result remains incomplete/degraded rather than inventing a direction diagnosis.
 
-The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing send and report sequence numbers, rejects unsolicited/duplicate/out-of-order reports, and requires consecutive confirmed receipts to recover from Failed. The integration must deliver receiver reports over an authenticated, ordered control channel or buffer/reorder them before applying them. The integration layer must authenticate the report and enforce its session/direction binding before invoking the API. This crate does not yet implement that network report protocol or cryptographic authentication.
+The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing send and report sequence numbers, rejects unsolicited/duplicate/out-of-order reports, and requires consecutive confirmed receipts to recover from Failed. The integration must authenticate each report and enforce its session/direction binding before invoking the API. The native proof-of-concept runtime now sends reports as ChaCha20-Poly1305-protected UDP datagrams, with keys derived by HKDF-SHA-256 from an out-of-band session PSK and separated by direction/message kind. The reusable ledger crate itself does not perform cryptographic authentication. The current UDP adapter rejects duplicate/out-of-order ledger reports but does not yet provide a report reorder buffer, retransmission, or ack-of-ack protocol.
 
 ## Session health
 
@@ -58,10 +58,10 @@ A session is bidirectionally healthy only when both direction records are Health
 
 ## Still required
 
-- Authenticated peer identity and first-contact trust bootstrap.
-- Encrypted transport and transcript/capability binding.
-- Endpoint-side remote receipt reporting and independent direction attribution.
-- Socket/QUIC adapter, retry scheduling, path selection and teardown.
+- Production pairing/first-contact trust bootstrap and transcript-bound capability negotiation.
+- Production key rotation/revocation and a formal session-key lifecycle.
+- UDP report reorder/retransmission/ack-of-ack and stronger recovery semantics.
+- QUIC/media transport evaluation, path selection and teardown.
 - Explicit reliable and deadline-bound delivery APIs.
 - Discovery, offline-LAN proof, NAT/firewall behavior and browser runtime.
 - Fuzzing, two-process integration, fault injection and external security review.

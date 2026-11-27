@@ -12,8 +12,8 @@ Last updated: 2026-11-27.
 | Native two-peer runtime | Implemented as a proof of concept | Mutual TLS, CA validation, exact SHA-256 peer pins, independent UDP heartbeat/report path |
 | Datagram security | Implemented | HKDF-SHA-256 key separation and ChaCha20-Poly1305 authentication/encryption using an out-of-band session PSK |
 | Receiver telemetry | Implemented | Scheduled heartbeats, receiver-observed deadlines, reports over reverse UDP |
-| Packet-drop harness | Implemented | Linux namespaces, veth, and tc netem; CI job executes real egress packet loss |
-| CI | Configured | Format, Clippy, tests, binary build, docs, packet-drop experiment |
+| Packet-drop harness | Passed | Linux namespaces, veth, and tc netem; A egress 100% loss produced A→B Failed / B→A Healthy |
+| CI | Passed on `136e0a4` | Format, Clippy, 51 tests, binary build, docs, and directional packet-drop job all green (run `46010224443`) |
 
 ## Explicit limitations
 
@@ -32,4 +32,4 @@ Last updated: 2026-11-27.
 4. Real device/LAN tests with internet disabled and realistic Wi-Fi isolation.
 5. Reproducible WebRTC baseline comparison with absolute rates and confidence intervals.
 
-The first three gates are represented by CI jobs and scripts, but are not considered passed until the corresponding run results are inspected. No simulated network result is reported as validation.
+Evidence snapshot (2026-11-27): gates 1–3 passed on commit `136e0a4` in GitHub Actions run `46010224443`. The real veth test applied 100% egress loss on A only and observed `session=OneWay a_to_b=Failed b_to_a=Healthy` at A. This validates that one controlled Linux topology and impairment profile only; it does not establish real Wi-Fi/LAN behavior, mirrored B→A behavior, simultaneous outage behavior, or a WebRTC improvement. No simulated network result is reported as validation.

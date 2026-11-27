@@ -19,24 +19,38 @@ The Rust tests cover:
 - Receiver-reported delivery evidence: send submission is not delivery, unsolicited reports are rejected, missing reports degrade/fail only their direction, recovery requires consecutive receipts, pending work is bounded, and out-of-order receiver reports are rejected.
 - Bidirectional delivery classification: one direction can be explicitly failed while the opposite direction remains confirmed healthy; one healthy direction alone never marks the session healthy; a failed direction plus an unverified reverse direction is Degraded, not falsely called OneWay; two confirmed failed directions are Unavailable.
 - Replay-window exact 127/128 sequence-distance boundaries and integer overflow edges.
+- AEAD datagram round trips, ciphertext-tamper rejection, session binding, and per-direction/per-message-kind key separation.
 - Crate-level prohibition of unsafe Rust.
 
 The repository CI runs formatting, Clippy with warnings denied, and all-target/all-feature tests. A commit is not considered validated until the corresponding Actions run is green.
 
+## Verified CI snapshot (2026-11-27)
+
+Commit: `136e0a40124b6b16d771b8eed01761ebd0f93c71`
+GitHub Actions run: `46010224443` (all jobs passed)
+
+- Formatting check: passed.
+- Clippy with warnings denied: passed.
+- Unit tests: 51 passed.
+- Native binary build and documentation build: passed.
+- Real directional packet-drop experiment: passed. Two Linux network namespaces were connected by a veth pair; A's egress was set to 100% loss with `tc netem`. Endpoint A reported `session=OneWay a_to_b=Failed b_to_a=Healthy`.
+
+This is one controlled Linux topology. It does not yet validate the mirrored B→A impairment, both directions blocked, Wi-Fi/AP isolation, physical devices, long-duration loss/reordering, or a comparative WebRTC reliability ratio.
+
 ## Required two-peer acceptance tests
 
-1. Two peers authenticate using the selected trust bootstrap.
-2. Unauthenticated or identity-substituted peers cannot establish an application session.
-3. A_TO_B and B_TO_A probes are independently observed and acknowledged.
-4. Blocking only A_TO_B yields ONE_WAY and identifies A_TO_B as failed.
-5. Blocking only B_TO_A yields the mirrored result.
-6. Blocking both directions yields UNAVAILABLE.
-7. A successful transport handshake with application delivery blocked is not reported healthy.
-8. A working LAN session survives loss of internet access.
-9. An unavailable LAN path is reported accurately; offline mode cannot bypass client isolation or firewall policy.
-10. Recovery obeys retry/time budgets and reports terminal failure.
-11. Oversized, malformed, duplicate and replayed frames are rejected safely.
-12. Diagnostics contain no payloads or secrets.
+1. **Passed in CI:** two peers mutually authenticate with test CA certificates, exact SHA-256 peer pins, and a session PSK.
+2. **Partial:** positive identity validation is exercised; explicit wrong-pin and untrusted-certificate negative tests remain.
+3. **Passed in CI:** both directions reach a receiver-confirmed healthy baseline.
+4. **Passed in CI:** blocking only A_TO_B yields ONE_WAY at A and identifies A_TO_B as failed.
+5. Not yet run: mirrored B_TO_A impairment.
+6. Not yet run: simultaneous bidirectional packet blackhole.
+7. **Partially covered:** a TLS-authenticated session does not become healthy until receiver-observed UDP heartbeats and receipts arrive.
+8. Not yet run: internet loss while LAN remains available.
+9. Not yet run: Wi-Fi client isolation, VLAN, or firewall topology validation.
+10. Not yet run: process restart and long-duration retry/recovery budgets.
+11. **Partially covered:** frame bounds, replay bookkeeping, and AEAD tamper/session-binding checks are unit-tested; parser fuzzing remains.
+12. **Partially covered:** runtime logs avoid payloads and key bytes; a broader diagnostics/privacy audit remains.
 
 ## Network impairment matrix
 
