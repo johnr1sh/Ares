@@ -62,6 +62,9 @@ impl SessionHealth {
         if matches!(a, D::Failed | D::Closed) && matches!(b, D::Failed | D::Closed) {
             return S::Unavailable;
         }
+        if matches!(a, D::Failed | D::Closed) || matches!(b, D::Failed | D::Closed) {
+            return S::Degraded;
+        }
         if a == D::Healthy || b == D::Healthy {
             return S::Degraded;
         }

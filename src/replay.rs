@@ -128,12 +128,12 @@ mod tests {
     #[test]
     fn exact_replay_window_boundary_is_inclusive_at_127() {
         let mut window = ReplayWindow::new();
-        window.accept(1_000).unwrap();
-        window.accept(1_127).unwrap();
-        assert_eq!(window.accept(1_000), Ok(()));
+        window.accept(999).unwrap();
+        window.accept(1_128).unwrap();
+        assert_eq!(window.accept(1_001), Ok(()));
         assert_eq!(
-            window.accept(1_000),
-            Err(ReplayError::Duplicate { sequence: 1_000 })
+            window.accept(1_001),
+            Err(ReplayError::Duplicate { sequence: 1_001 })
         );
     }
 
