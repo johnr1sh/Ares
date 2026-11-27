@@ -61,8 +61,12 @@ key rotation.
   retransmission/ack-of-ack protocol or a report reorder buffer.
 - Directional evidence expires after three observation timeouts. Stale positive
   or negative evidence is shown as Degraded rather than asserted as current
-  health/failure. A stale direction requires the configured number of new
-  positive confirmations before returning to Healthy.
+  health/failure. Expiry and recovery are separate: a stale direction keeps a
+  recovery latch, and requires the configured number of new positive
+  confirmations before returning to Healthy. A fresh missing report can
+  refresh negative evidence but cannot release that positive-recovery latch.
+- The two-way TLS authentication gate registers its notification waiter before
+  checking the authentication flags, avoiding a lost-wakeup race.
 
 The runtime currently carries heartbeats and receipts, not application data,
 audio, or video. It does not yet provide discovery, NAT traversal, relay
@@ -77,19 +81,13 @@ On Linux with root privileges, iproute2, OpenSSL, and a built binary:
     cargo build --bin ares-peer
     sudo bash scripts/test-directional-packet-drop.sh
 
-The script creates two network namespaces connected by a veth pair, starts two
-independent peer processes with mutually authenticated TLS and a fresh
-session PSK, waits for a bidirectionally healthy baseline, then applies
-tc netem loss 100% to A's egress interface only. It passes only if endpoint A
-reports:
-
-    session=OneWay a_to_b=Failed b_to_a=Healthy
-
-The CI job runs the expanded network-layer experiment: A→B-only loss,
-B→A-only loss, both-directions-down, and recovery after each impairment. It
-also asserts directional freshness indicators and stale recovery hysteresis,
-so old evidence cannot remain Healthy/Failed forever or return to Healthy on
-only one post-outage observation. A passing unit
+The script creates two network namespaces connected by a veth pair and starts
+two independent peers with mutually authenticated TLS and a fresh session
+PSK. It then performs A→B-only loss, restores that direction, performs B→A-only
+loss, restores it, blocks both directions, and finally restores both. It checks
+that the surviving direction is localized only when it has fresh positive
+evidence, that both-direction silence degrades stale claims, and that both peers
+recover after traffic resumes. The latest CI run passed these phases. A passing unit
 test or an application-level drop simulation is not a substitute for this
 experiment.
 
