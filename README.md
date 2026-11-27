@@ -8,16 +8,18 @@ Its first target is **ARES Core 0.1**: a two-peer native foundation that will es
 
 ## Current implementation
 
-The Rust crate now contains working, transport-independent primitives:
+The Rust crate now contains reliability primitives and an early native two-peer runtime:
 
 - Independent A→B and B→A health records with a derived session state.
 - A bounded, versioned application-frame encoder/decoder.
 - A fixed-memory 128-sequence replay window.
 - A monotonic probe/ack tracker with acknowledgement deadlines, bounded in-flight work, miss thresholds, and consecutive-success recovery.
 - A receiver-reported delivery ledger that keeps A→B and B→A independent and bounds unconfirmed receipts.
-- A bidirectional delivery supervisor that reports one-way failure only when one direction has explicit receiver-reported missing evidence and the opposite direction has confirmed delivery.
+- A bidirectional delivery supervisor with direct receiver observations and authenticated remote receipt evidence.
+- A Tokio TCP/TLS peer process with mutual CA validation, exact SHA-256 leaf pins, independent outbound connections, and receiver-generated heartbeat reports.
+- A Linux network-namespace fault-injection script that applies real egress packet loss with tc netem and checks the surviving direction.
 
-The crate includes 45 unit tests across state transitions, framing, replay, probes, and directional delivery evidence. CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
+The native runtime currently proves heartbeat delivery and directional health; it is not yet a general application-data, audio, or video transport. Its TCP/TLS design is a proof of concept, not the final transport decision. The CI packet-drop job must pass before the network experiment is called validated. The frame codec itself is not cryptographic protection and is only used inside TLS.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
@@ -34,7 +36,7 @@ See [implementation status](docs/implementation-status.md) for the exact boundar
 
 1. **M0 — Foundation:** requirements, threat model, architecture, protocol record, CI, and fault-injection plan. The documentation and initial crate foundations are present.
 2. **M1a — Reliability primitives:** framing, replay-window bookkeeping, directional state, and probe lifecycle. Implemented in the Rust crate; CI verification is required for each commit.
-3. **M1b — Secure native transport:** authenticated peer identity, encrypted QUIC transport, explicit trust bootstrap, and two-process integration tests.
+3. **M1b — Native transport proof:** mutual TLS, pinned peer identity, two-process heartbeat runtime, and directional packet-drop experiment. QUIC remains a candidate for a later transport decision.
 4. **M1c — Local connectivity:** manual/QR pairing, endpoint selection, offline-LAN tests, and direction-specific network impairment.
 5. **M2 — Media:** audio/video pipeline, clocking, jitter handling, synchronization, and adaptive quality.
 6. **M3 — Connectivity:** IPv4/IPv6, NAT traversal, relay policy, interface/path migration, and recovery.
@@ -44,6 +46,7 @@ See [implementation status](docs/implementation-status.md) for the exact boundar
 ## Documentation
 
 - [Implementation status](docs/implementation-status.md)
+- [Native runtime and packet-drop test](docs/native-runtime.md)
 - [Architecture](docs/architecture.md)
 - [Core protocol and frame format](docs/core-protocol.md)
 - [Security model](SECURITY.md)

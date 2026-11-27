@@ -142,6 +142,7 @@ async fn accept_loop(
         let reports = reports.clone();
         let delivery = Arc::clone(&delivery);
         let config = Arc::clone(&config);
+        let peer_id_for_log = config.peer_id.clone();
         tokio::spawn(async move {
             let result = async {
                 let tls = time::timeout(Duration::from_secs(8), acceptor.accept(tcp))
@@ -151,13 +152,16 @@ async fn accept_loop(
                     tls.get_ref().1.peer_certificates(),
                     &config.expected_peer_sha256,
                 )?;
-                eprintln!("ARES_AUTHENTICATED local={} peer={} remote={remote_addr}",
-                    local_name(config.local_is_a), config.peer_id);
+                eprintln!(
+                    "ARES_AUTHENTICATED local={} peer={} remote={remote_addr}",
+                    local_name(config.local_is_a),
+                    config.peer_id
+                );
                 receive_loop(tls, reports, delivery, config).await
             }
             .await;
             if let Err(error) = result {
-                eprintln!("ARES_INBOUND_CLOSED peer={} error={error:#}", config.peer_id);
+                eprintln!("ARES_INBOUND_CLOSED peer={} error={error:#}", peer_id_for_log);
             }
         });
     }
@@ -194,19 +198,18 @@ async fn connect_loop(
             tls.get_ref().1.peer_certificates(),
             &config.expected_peer_sha256,
         )?;
-        eprintln!("ARES_OUTBOUND_AUTHENTICATED local={} peer={}",
-            local_name(config.local_is_a), config.peer_id);
+        eprintln!(
+            "ARES_OUTBOUND_AUTHENTICATED local={} peer={}",
+            local_name(config.local_is_a),
+            config.peer_id
+        );
 
-        let result = send_loop(
-            tls,
-            &mut reports,
-            &delivery,
-            &config,
-            &mut sequence,
-        )
-        .await;
+        let result = send_loop(tls, &mut reports, &delivery, &config, &mut sequence).await;
         if let Err(error) = result {
-            eprintln!("ARES_OUTBOUND_RETRY peer={} error={error:#}", config.peer_id);
+            eprintln!(
+                "ARES_OUTBOUND_RETRY peer={} error={error:#}",
+                config.peer_id
+            );
         }
         time::sleep(Duration::from_millis(250)).await;
     }
@@ -269,7 +272,8 @@ async fn receive_loop(
     });
 
     let inbound_direction = peer_to_local(config.local_is_a);
-    let mut expected = delivery.lock()
+    let mut expected = delivery
+        .lock()
         .map_err(|_| anyhow!("delivery mutex poisoned"))?
         .direction(inbound_direction)
         .last_observed_sequence()
@@ -342,7 +346,10 @@ async fn queue_report(
         sequence,
         &[status],
     )?;
-    reports.send(frame).await.context("outbound report queue closed")?;
+    reports
+        .send(frame)
+        .await
+        .context("outbound report queue closed")?;
     Ok(())
 }
 
@@ -351,8 +358,13 @@ fn apply_observed_received(
     direction: Direction,
     sequence: u64,
 ) -> Result<()> {
-    let mut state = delivery.lock().map_err(|_| anyhow!("delivery mutex poisoned"))?;
-    match state.direction_mut(direction).record_observed_received(sequence) {
+    let mut state = delivery
+        .lock()
+        .map_err(|_| anyhow!("delivery mutex poisoned"))?;
+    match state
+        .direction_mut(direction)
+        .record_observed_received(sequence)
+    {
         Ok(()) => Ok(()),
         Err(crate::ReceiptError::ReportSequenceNotIncreasing { .. }) => Ok(()),
         Err(error) => Err(error.into()),
@@ -364,8 +376,13 @@ fn apply_observed_missing(
     direction: Direction,
     sequence: u64,
 ) -> Result<()> {
-    let mut state = delivery.lock().map_err(|_| anyhow!("delivery mutex poisoned"))?;
-    match state.direction_mut(direction).record_observed_missing(sequence) {
+    let mut state = delivery
+        .lock()
+        .map_err(|_| anyhow!("delivery mutex poisoned"))?;
+    match state
+        .direction_mut(direction)
+        .record_observed_missing(sequence)
+    {
         Ok(()) => Ok(()),
         Err(crate::ReceiptError::ReportSequenceNotIncreasing { .. }) => Ok(()),
         Err(error) => Err(error.into()),
@@ -375,9 +392,7 @@ fn apply_observed_missing(
 async fn read_frame<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Vec<u8>> {
     let mut header = [0_u8; HEADER_LEN];
     reader.read_exact(&mut header).await?;
-    let payload_len = u32::from_be_bytes([
-        header[32], header[33], header[34], header[35],
-    ]) as usize;
+    let payload_len = u32::from_be_bytes([header[32], header[33], header[34], header[35]]) as usize;
     if payload_len > MAX_PAYLOAD_LEN {
         bail!("incoming frame exceeds payload limit");
     }
@@ -389,10 +404,7 @@ async fn read_frame<R: AsyncRead + Unpin>(reader: &mut R) -> Result<Vec<u8>> {
     Ok(frame)
 }
 
-fn verify_peer_pin(
-    certificates: Option<&[CertificateDer<'_>]>,
-    expected: &[u8; 32],
-) -> Result<()> {
+fn verify_peer_pin(certificates: Option<&[CertificateDer<'_>]>, expected: &[u8; 32]) -> Result<()> {
     let leaf = certificates
         .and_then(|certificates| certificates.first())
         .ok_or_else(|| anyhow!("peer did not present a certificate"))?;
@@ -404,15 +416,27 @@ fn verify_peer_pin(
 }
 
 fn local_to_peer(local_is_a: bool) -> Direction {
-    if local_is_a { Direction::AToB } else { Direction::BToA }
+    if local_is_a {
+        Direction::AToB
+    } else {
+        Direction::BToA
+    }
 }
 
 fn peer_to_local(local_is_a: bool) -> Direction {
-    if local_is_a { Direction::BToA } else { Direction::AToB }
+    if local_is_a {
+        Direction::BToA
+    } else {
+        Direction::AToB
+    }
 }
 
 fn local_name(local_is_a: bool) -> &'static str {
-    if local_is_a { "a" } else { "b" }
+    if local_is_a {
+        "a"
+    } else {
+        "b"
+    }
 }
 
 /// Snapshot for a supervisor, CLI, or metrics exporter.
