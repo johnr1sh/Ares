@@ -62,6 +62,7 @@ impl std::error::Error for ReceiptPolicyError {}
 pub enum ReceiptError {
     Closed,
     SequenceNotIncreasing { previous: u64, next: u64 },
+    ReportSequenceNotIncreasing { previous: u64, next: u64 },
     PendingLimitReached,
     UnknownOrAlreadyReported(u64),
 }
@@ -73,6 +74,10 @@ impl fmt::Display for ReceiptError {
             Self::SequenceNotIncreasing { previous, next } => write!(
                 f,
                 "sequence must increase: previous {previous}, next {next}"
+            ),
+            Self::ReportSequenceNotIncreasing { previous, next } => write!(
+                f,
+                "receipt reports must be ordered: previous {previous}, next {next}"
             ),
             Self::PendingLimitReached => write!(f, "pending receipt limit reached"),
             Self::UnknownOrAlreadyReported(sequence) => {
@@ -95,6 +100,7 @@ pub struct DeliveryLedger {
     policy: ReceiptPolicy,
     pending: VecDeque<u64>,
     last_sequence: Option<u64>,
+    last_reported_sequence: Option<u64>,
     state: DirectionState,
     confirmed_received: u64,
     confirmed_missing: u64,
@@ -126,6 +132,7 @@ impl DeliveryLedger {
             policy,
             pending: VecDeque::with_capacity(policy.max_pending),
             last_sequence: None,
+            last_reported_sequence: None,
             state: DirectionState::Unknown,
             confirmed_received: 0,
             confirmed_missing: 0,
@@ -233,12 +240,21 @@ impl DeliveryLedger {
         if self.state == DirectionState::Closed {
             return Err(ReceiptError::Closed);
         }
+        if let Some(previous) = self.last_reported_sequence {
+            if sequence <= previous {
+                return Err(ReceiptError::ReportSequenceNotIncreasing {
+                    previous,
+                    next: sequence,
+                });
+            }
+        }
         let position = self
             .pending
             .iter()
             .position(|pending| *pending == sequence)
             .ok_or(ReceiptError::UnknownOrAlreadyReported(sequence))?;
         let _ = self.pending.remove(position);
+        self.last_reported_sequence = Some(sequence);
         Ok(())
     }
 }
@@ -387,6 +403,21 @@ mod tests {
         assert_eq!(ledger.record_sent(7), Err(ReceiptError::PendingLimitReached));
         ledger.record_remote_received(5).unwrap();
         ledger.record_sent(7).unwrap();
+    }
+
+    #[test]
+    fn receiver_reports_must_be_applied_in_sequence_order() {
+        let mut ledger = DeliveryLedger::new(policy()).unwrap();
+        ledger.record_sent(1).unwrap();
+        ledger.record_sent(2).unwrap();
+        ledger.record_remote_received(2).unwrap();
+        assert_eq!(
+            ledger.record_remote_missing(1),
+            Err(ReceiptError::ReportSequenceNotIncreasing {
+                previous: 2,
+                next: 1
+            })
+        );
     }
 
     #[test]
