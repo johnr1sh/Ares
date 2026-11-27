@@ -1,12 +1,12 @@
 # ADR 0001: Native Core language and transport candidate
 
-- Status: proposed; not accepted
+- Status: Rust selected for the native Core; Quinn remains a transport candidate pending a runnable authenticated prototype
 - Date: 2026-11-27
 - Decision owners: ARES maintainers
 
 ## Context
 
-ARES Core 0.1 needs a native implementation that can run on common desktop/server platforms, support authenticated bidirectional sessions, and carry both reliable ordered data and deadline-bound data. The project must not prematurely create a custom transport.
+ARES Core needs a native implementation that can run on common desktop/server platforms, support authenticated bidirectional sessions, and carry both reliable ordered data and deadline-bound data. The project must not prematurely create a custom transport.
 
 ## Constraints
 
@@ -32,25 +32,26 @@ ARES Core 0.1 needs a native implementation that can run on common desktop/serve
 - rustls is a maintained Rust TLS implementation with TLS 1.2 and 1.3 support: https://github.com/rustls/rustls
 - WebTransport exposes reliable streams and unreliable datagrams to browser applications but remains a browser API with a client/server HTTP/3 model: https://developer.mozilla.org/en-US/docs/Web/API/WebTransport_API
 
-## Proposed direction
+## Decision
 
-Use Rust for the first native Core implementation and evaluate Quinn as the QUIC engine. Use the TLS integration supported by the selected Quinn version. Do not add a custom cipher, congestion controller, or transport protocol.
+Use Rust for the native ARES Core. Keep the protocol engine independent of the transport, and require exact dependency versions plus a buildable two-peer proof before accepting a transport choice.
 
-Keep transport behind an internal interface so that a different implementation can be substituted if experiments reveal a concrete limitation.
+Quinn remains the leading candidate, not an implemented or finally accepted transport. Use its supported TLS integration if the prototype validates its platform support, peer identity model, LAN behavior, datagram limits, and operational complexity. Do not add a custom cipher, congestion controller, or transport protocol.
 
-Do not treat a successful QUIC connection as proof of authenticated ARES peer identity until the selected certificate/pairing trust bootstrap is designed and tested. First-contact identity binding remains a separate mandatory decision.
+A successful QUIC connection alone is not proof of authenticated ARES peer identity. The first-contact trust bootstrap and peer identity binding must be designed and tested separately.
 
 ## Consequences and known limitations
 
-- QUIC streams can carry reliable ordered control and data.
-- QUIC DATAGRAM can carry deadline-bound data, but loss is not retransmitted and maximum size is constrained by negotiated limits and path MTU.
-- QUIC does not solve discovery, NAT traversal, firewall policy, relay selection, group key management, or browser-to-browser connectivity.
+- Rust provides one native implementation language for the first Core milestones.
+- The frame codec, replay window, and probe tracker remain transport-independent.
+- No transport, cryptographic suite, pairing scheme, discovery method, or browser gateway is frozen by this decision.
+- QUIC does not solve discovery, NAT traversal, firewall policy, relay selection, group key management, or browser raw-socket access.
 - Rust/Quinn availability on desktop does not prove support on every mobile target or browser runtime.
 - A LAN-only prototype must be tested with internet disconnected and with realistic Wi-Fi isolation/firewall scenarios.
 
-## Validation required before acceptance
+## Validation required before accepting a transport
 
-1. Build a two-peer native prototype using the selected versions.
+1. Build a two-peer native prototype using exact, pinned dependency versions.
 2. Demonstrate simultaneous peer operation on a documented LAN topology.
 3. Authenticate peer identity using a separately reviewed pairing/certificate design.
 4. Demonstrate reliable stream delivery and deadline-bound datagram behavior.
