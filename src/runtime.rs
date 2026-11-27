@@ -172,24 +172,9 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
         }
     });
 
-    let accept_task = accept_loop(
-        listener,
-        acceptor,
-        Arc::clone(&auth),
-        Arc::clone(&config),
-    );
-    let connect_task = connect_loop(
-        connector,
-        Arc::clone(&auth),
-        Arc::clone(&config),
-    );
-    let udp_task = udp_supervisor(
-        udp,
-        delivery,
-        keys,
-        Arc::clone(&auth),
-        config,
-    );
+    let accept_task = accept_loop(listener, acceptor, Arc::clone(&auth), Arc::clone(&config));
+    let connect_task = connect_loop(connector, Arc::clone(&auth), Arc::clone(&config));
+    let udp_task = udp_supervisor(udp, delivery, keys, Arc::clone(&auth), config);
 
     tokio::select! {
         result = accept_task => result,
@@ -546,11 +531,7 @@ fn seal_frame(frame: &[u8], key: &[u8; 32], session_id: &[u8; 16]) -> Result<Vec
     Ok(datagram)
 }
 
-fn open_datagram(
-    datagram: &[u8],
-    key: &[u8; 32],
-    session_id: &[u8; 16],
-) -> Result<Vec<u8>> {
+fn open_datagram(datagram: &[u8], key: &[u8; 32], session_id: &[u8; 16]) -> Result<Vec<u8>> {
     if datagram.len() < DATAGRAM_HEADER_LEN + AEAD_TAG_LEN {
         bail!("truncated encrypted UDP datagram");
     }

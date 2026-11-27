@@ -20,7 +20,7 @@ async fn run() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 11 {
         anyhow::bail!(
-            "usage: ares-peer <a|b> <bind-addr> <peer-addr> <peer-id> <ca.der> <cert.der> <key.der> <peer-sha256-hex> <session-id-hex> <shared-session-key-hex>"
+            "usage: ares-peer <a|b> <bind-addr> <peer-addr> <peer-id> <ca.der> <cert.der> <key.der> <peer-sha256-hex> <session-id-hex> <session-key.bin>"
         );
     }
     let local_is_a = match args[1].as_str() {
@@ -34,12 +34,12 @@ async fn run() -> anyhow::Result<()> {
     }
     let bind_addr = SocketAddr::from_str(&args[2])?;
     let peer_addr = SocketAddr::from_str(&args[3])?;
-    let expected_peer_sha256 = decode_hex::<32>(&args[8], "peer SHA-256 fingerprint")
-        .map_err(anyhow::Error::msg)?;
-    let session_id =
-        decode_hex::<16>(&args[9], "session id").map_err(anyhow::Error::msg)?;
-    let shared_session_key =
-        decode_hex::<32>(&args[10], "shared session key").map_err(anyhow::Error::msg)?;
+    let expected_peer_sha256 =
+        decode_hex::<32>(&args[8], "peer SHA-256 fingerprint").map_err(anyhow::Error::msg)?;
+    let session_id = decode_hex::<16>(&args[9], "session id").map_err(anyhow::Error::msg)?;
+    let shared_session_key: [u8; 32] = std::fs::read(&args[10])?
+        .try_into()
+        .map_err(|bytes: Vec<u8>| anyhow::anyhow!("session key file must be 32 bytes, got {}", bytes.len()))?;
     let config = PeerConfig {
         local_is_a,
         bind_addr,

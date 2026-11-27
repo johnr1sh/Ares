@@ -30,11 +30,12 @@ The runtime expects DER-encoded CA, leaf certificate, and PKCS#8 private key
 files. The leaf certificate must contain the peer's DNS name (a or b) as a
 SAN and permit both clientAuth and serverAuth. Both peers must trust the same
 CA and pin the other peer's exact leaf SHA-256 fingerprint. Both peers must
-also receive the same unique 32-byte session key and 16-byte session ID over a
-secure provisioning channel.
+also receive the same unique 32-byte session key file and 16-byte session ID over a
+secure provisioning channel. Keep the key file private; do not pass key bytes
+on the process command line.
 
-    ares-peer a 192.0.2.10:41001 192.0.2.11:41001 b ca.der a.der a-key.der <b-cert-sha256> <session-id-hex> <shared-session-key-hex>
-    ares-peer b 192.0.2.11:41001 192.0.2.10:41001 a ca.der b.der b-key.der <a-cert-sha256> <same-session-id> <same-shared-session-key>
+    ares-peer a 192.0.2.10:41001 192.0.2.11:41001 b ca.der a.der a-key.der <b-cert-sha256> <session-id-hex> <session-key.bin>
+    ares-peer b 192.0.2.11:41001 192.0.2.10:41001 a ca.der b.der b-key.der <a-cert-sha256> <same-session-id> <same-session-key-file>
 
 Never reuse a session key with the same session ID for a restarted session:
 the per-direction, per-message-kind AEAD nonce space is monotonic within a
