@@ -13,9 +13,9 @@ env:
 
 jobs:
   test:
-    name: Format, lint and test
+    name: Format, lint and unit test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -28,5 +28,24 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --all-targets --all-features
+      - name: Build native peer
+        run: cargo build --bin ares-peer
       - name: Build documentation
         run: cargo doc --no-deps --all-features
+
+  directional-packet-drop:
+    name: Real directional packet-drop proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install network test utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iproute2 openssl
+      - name: Build native peer
+        run: cargo build --bin ares-peer
+      - name: Run isolated veth packet-drop test
+        run: sudo bash scripts/test-directional-packet-drop.sh

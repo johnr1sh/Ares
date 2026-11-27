@@ -12,6 +12,7 @@ mod receipt;
 mod probe;
 mod protocol;
 mod replay;
+mod runtime;
 mod session;
 
 pub use direction::{Direction, DirectionHealth, DirectionState, TransitionError};
@@ -27,4 +28,5 @@ pub use protocol::{
     MAX_PAYLOAD_LEN, PROTOCOL_VERSION,
 };
 pub use replay::{ReplayError, ReplayWindow, REPLAY_WINDOW_BITS};
+pub use runtime::{run_peer, session_snapshot, PeerConfig};
 pub use session::{SessionHealth, SessionState};

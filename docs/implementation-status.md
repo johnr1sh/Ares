@@ -2,38 +2,33 @@
 
 Last updated: 2026-11-27.
 
-This page separates working code from design intent. It is updated with the code, not used as a roadmap substitute.
-
-## Implemented in the Rust crate
+## Implemented
 
 | Area | Status | Boundary |
 |---|---|---|
-| Direction state | Implemented | Explicit state transitions and saturating counters |
-| Session state | Implemented | Derived from two independent direction records; conservative when evidence is incomplete |
-| Frame codec | Implemented | Version-1 bounded encoder/decoder; no authentication or encryption |
-| Replay window | Implemented | Fixed 128-sequence window; caller must authenticate before updating |
-| Probe tracker | Implemented | Monotonic deadlines, 1,024 hard maximum in-flight probes, miss thresholds, recovery hysteresis |
-| Delivery evidence | Implemented | Per-direction bounded receipt ledger; only authenticated receiver reports count as delivery/missing evidence |
-| Bidirectional delivery | Implemented | Combines independent directional ledgers; reports OneWay only with positive evidence for the healthy direction and explicit missing reports for the failed direction |
-| CI | Configured | rustfmt, Clippy with warnings denied, and cargo tests |
+| Direction/session state | Implemented | Separate directional state; conservative aggregate |
+| Frame codec and replay window | Implemented | Bounded framing and replay bookkeeping |
+| Receipt ledger | Implemented | Sender-side authenticated reports plus direct receiver observations |
+| Native two-peer runtime | Implemented as a proof of concept | Tokio TCP/TLS; independent outbound connections; CA validation and SHA-256 peer pins |
+| Receiver telemetry | Implemented | Scheduled heartbeats, receiver-observed deadlines, reports over the opposite independent connection |
+| Packet-drop harness | Implemented | Linux namespaces, veth, and tc netem; CI job executes real egress packet loss |
+| CI | Configured | Format, Clippy, tests, binary build, docs, packet-drop experiment |
 
-## Not implemented
+## Explicit limitations
 
-- Socket or QUIC transport.
-- Mutual peer authentication, pairing, identity persistence, or encrypted application sessions.
-- Session establishment/teardown across two processes.
-- Reliable-stream or deadline-bound datagram APIs.
-- Network transport for remote receipt telemetry; the current ledger API requires an authenticated integration layer to supply receiver reports.
-- LAN discovery, offline-LAN verification, NAT traversal, relay selection, or path migration.
-- Audio/video capture, codecs, rendering, synchronization, or browser runtime.
-- Benchmark evidence, WebRTC baseline comparison, production readiness, or security audit.
+- TCP/TLS only; Quinn/QUIC and deadline-bound datagrams are not implemented.
+- Heartbeat deadline misses are liveness evidence, not proof that a specific IP packet was dropped.
+- The runtime currently carries heartbeats and receipts, not application data, audio, or video.
+- No discovery, NAT traversal, relay, path migration, browser runtime, persistent identity store, revocation, or key rotation.
+- No offline-LAN claim until tested on real target devices and AP configurations.
+- No WebRTC comparative reliability claim or production security audit.
 
-## Engineering gates
+## Evidence gates
 
-1. **Gate A — compile and unit tests:** current primitives must pass formatting, lint, unit, and documentation tests in CI.
-2. **Gate B — authenticated transport:** select and pin a maintained transport/TLS implementation; prove mutual peer authentication and encrypted two-process data exchange.
-3. **Gate C — directional proof:** wire the delivery ledger to authenticated endpoint receipt reports and deterministic A→B-only, B→A-only, and bidirectional network fault injection. The ledger API alone does not pass this gate.
-4. **Gate D — offline LAN:** demonstrate session setup and continued communication with internet disabled on documented devices and topology.
-5. **Gate E — reliability claim:** compare against a pinned WebRTC baseline using identical hardware, topology, impairment, workload, and observation windows. Publish absolute rates and confidence intervals.
+1. Compile, lint, unit tests, docs.
+2. Two-process mutual TLS and peer fingerprint enforcement.
+3. Linux veth/tc netem directional packet-drop experiment.
+4. Real device/LAN tests with internet disabled and realistic Wi-Fi isolation.
+5. Reproducible WebRTC baseline comparison with absolute rates and confidence intervals.
 
-No later gate is considered passed because an earlier gate passed.
+The first three gates are represented by CI jobs and scripts, but are not considered passed until the corresponding run results are inspected. No simulated network result is reported as validation.

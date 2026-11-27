@@ -515,4 +515,35 @@ mod tests {
             Some(ReceiptPolicyError::InvalidMissingThresholds)
         );
     }
+    #[test]
+    fn receiver_observation_does_not_require_a_local_send() {
+        let mut ledger = DeliveryLedger::new(policy()).unwrap();
+        ledger.record_observed_received(1).unwrap();
+        assert_eq!(ledger.state(), DirectionState::Healthy);
+        assert_eq!(ledger.confirmed_received(), 1);
+        assert_eq!(ledger.pending_count(), 0);
+    }
+
+    #[test]
+    fn receiver_observed_deadlines_fail_only_the_observed_direction() {
+        let mut session = BidirectionalDelivery::new(policy()).unwrap();
+        let inbound = session.direction_mut(Direction::BToA);
+        inbound.record_observed_missing(1).unwrap();
+        assert_eq!(inbound.state(), DirectionState::Degraded);
+        inbound.record_observed_missing(2).unwrap();
+        assert_eq!(inbound.state(), DirectionState::Failed);
+        session.direction_mut(Direction::AToB).record_observed_received(1).unwrap();
+        assert_eq!(session.state(), SessionState::OneWay);
+    }
+
+    #[test]
+    fn late_or_duplicate_receiver_observations_are_rejected() {
+        let mut ledger = DeliveryLedger::new(policy()).unwrap();
+        ledger.record_observed_missing(2).unwrap();
+        assert_eq!(
+            ledger.record_observed_received(1),
+            Err(ReceiptError::ReportSequenceNotIncreasing { previous: 2, next: 1 })
+        );
+    }
+
 }
