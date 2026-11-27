@@ -1,76 +1,57 @@
-# ARES Core 0.1 protocol requirements
+# ARES Core 0.1 protocol
 
-Status: requirements draft. This is not a wire-format specification and is not yet implemented.
+Status: version-1 frame codec implemented; secure session and transport are not implemented. This is the current framing contract, not a complete secure wire protocol.
 
-## Scope and threat model
+## Security boundary
 
-Core 0.1 is a two-peer authenticated session over a viable IP network, with local mode independent of internet access. Attackers may observe, inject, modify, delay, duplicate, reorder or replay packets; impersonate peers; poison discovery; attempt downgrade; exploit malformed framing; or exhaust CPU, memory, sockets and queues. A LAN is not inherently trusted.
+The frame codec only parses and serializes bounded bytes. It provides no encryption, integrity, sender authentication, identity binding, authorization, or replay enforcement. Frames must travel inside a separately authenticated and encrypted channel before fields or payloads are trusted. Update replay state only after authentication.
 
-## Session establishment
+## Version-1 frame format
 
-1. Discover endpoint candidates without treating discovery as identity proof.
-2. Authenticate peers before accepting application data.
-3. Bind protocol version, peer identities, capabilities and session parameters into the authenticated handshake transcript.
-4. Derive directional traffic keys using an established, reviewed cryptographic protocol/library. Do not design custom cryptography.
-5. Reject replayed, unauthenticated, malformed or out-of-session data.
-6. Fail closed on unsupported mandatory features or invalid authentication.
-7. Support explicit close, timeout and crash/restart detection.
-8. Keep secrets out of logs, crash reports, metrics and test artifacts.
+All integer fields are unsigned big-endian. The fixed header is 36 bytes.
 
-The trust bootstrap (for example, verified QR fingerprint or short-lived pairing secret) requires an ADR. An unauthenticated public-key exchange is vulnerable to man-in-the-middle attacks.
+| Offset | Length | Field | Rule |
+|---:|---:|---|---|
+| 0 | 4 | Magic | ASCII `ARES` |
+| 4 | 1 | Version | `1` |
+| 5 | 1 | Message kind | `1` Probe, `2` Acknowledgement, `3` Data |
+| 6 | 2 | Flags | Must be zero in version 1 |
+| 8 | 16 | Session identifier | Opaque, non-secret session value |
+| 24 | 8 | Sequence | Monotonic per sending stream |
+| 32 | 4 | Payload length | Must exactly match remaining bytes |
+| 36 | variable | Payload | Maximum 65,536 bytes |
 
-## Directional health protocol
+The decoder rejects truncated headers, wrong magic, unsupported versions, unknown message kinds, non-zero reserved flags, oversized payloads, and declared/actual length mismatches. It borrows the payload slice and does not allocate while decoding. The encoder allocates at most one frame bounded by the same payload limit.
 
-Each peer maintains independent directional health records. A probe carries a non-secret session identifier, direction, monotonically increasing sequence number, sender monotonic timestamp/sample, probe type and bounded payload length. Authentication is provided by the selected secure channel.
+A 64 KiB frame limit is a parser/resource bound, not a recommendation to send 64 KiB QUIC DATAGRAMs. Datagram payload sizing must be negotiated and constrained by path MTU; larger reliable data belongs on a stream.
 
-The receiver validates membership, sequence/replay window, size and authentication, records receipt, and emits an acknowledgement with explicit semantics. The sender records acknowledgement receipt.
+## Replay window
 
-A direction is not healthy merely because a probe was queued locally. Record forward delivery and reverse acknowledgement separately. Use monotonic clocks for local durations. Do not subtract wall-clock timestamps from different devices to claim one-way latency unless clock synchronization and uncertainty are measured. RTT does not require synchronized clocks.
+The crate provides a fixed-memory 128-sequence sliding replay window. It accepts reordered messages inside the window once, rejects duplicates, and rejects values older than the window. The caller must authenticate first and scope a replay window to the correct peer/session/stream context.
 
-## Delivery classes
+## Probe lifecycle
 
-### Reliable class
-- Ordered delivery where requested.
-- Explicit flow control and backpressure.
-- Bounded buffering and message size.
-- Cancellation and timeout semantics.
-- Application acknowledgement only when transport delivery is insufficient.
+The probe tracker:
+- Requires strictly increasing sequence numbers.
+- Bounds outstanding probes.
+- Uses monotonic `Instant` deadlines.
+- Expires each outstanding probe only once.
+- Moves through Starting, Degraded, Failed, Recovering, and Healthy according to configured thresholds.
+- Requires consecutive successful acknowledgements to recover from Failed.
+- Rejects unknown/expired acknowledgements and makes Closed terminal.
 
-### Deadline-bound class
-- Explicit expiry/deadline.
-- No retransmission promise after deadline.
-- Late data is counted and discarded or surfaced by API policy.
-- Loss, reordering, duplication and expiry are observable.
-- Congestion control remains mandatory.
+The tracker models an acknowledgement exchange (a request/response path). An ACK timeout alone cannot distinguish a lost forward probe from a lost reverse ACK. A real two-peer supervisor must combine both endpoints' directional send/receipt observations and separately measured probe directions before asserting which physical direction failed.
 
-## Framing and parser safety
+## Session health
 
-Specify a versioned frame format with unambiguous framing, message type, bounded length, session/stream association, sequence number where required, authenticated protection, and defined handling for unknown types/versions.
+A session is bidirectionally healthy only when both direction records are Healthy. One Healthy direction plus a confirmed Failed/Closed opposite direction is OneWay. A Healthy direction paired with Unknown, Starting, Degraded, or Recovering evidence is Degraded, never BidirectionalHealthy.
 
-Reject overlong lengths before allocation. Fuzz parsers and state transitions. Never deserialize untrusted input into unsafe object graphs or invoke code based on remote type names.
+## Still required
 
-## Failure classification
-
-At minimum distinguish:
-- LOCAL_SOURCE_UNAVAILABLE
-- LOCAL_SEND_REJECTED
-- REMOTE_RECEIPT_TIMEOUT
-- AUTHENTICATION_FAILED
-- REPLAY_REJECTED
-- REMOTE_PARSE_FAILED
-- REMOTE_APPLICATION_NOT_DELIVERING
-- ACKNOWLEDGEMENT_TIMEOUT
-- PATH_UNREACHABLE
-- SESSION_EXPIRED
-- RESOURCE_LIMIT_REACHED
-- PROTOCOL_VERSION_UNSUPPORTED
-
-Do not collapse all faults into disconnected. Diagnostics identify stage and direction without exposing payloads or secrets.
-
-## Recovery requirements
-
-Retry budgets and deadlines are bounded. Backoff prevents retry storms. Alternate paths are validated before replacing a working path. Duplicate in-flight operations are idempotent or deduplicated. Recovery does not reset identity or accept stale session data. Report terminal failure when the recovery budget expires.
-
-## Decisions required before wire-format freeze
-
-Implementation language and OS support; transport and datagram mechanism; peer identity and first-contact trust bootstrap; cryptographic protocol/library and key lifecycle; discovery; frame encoding and version negotiation; probe interval and thresholds; and whether reliable/deadline-bound classes share a connection. Resolve through ADRs and runnable experiments.
+- Authenticated peer identity and first-contact trust bootstrap.
+- Encrypted transport and transcript/capability binding.
+- Endpoint-side remote receipt reporting and independent direction attribution.
+- Socket/QUIC adapter, retry scheduling, path selection and teardown.
+- Explicit reliable and deadline-bound delivery APIs.
+- Discovery, offline-LAN proof, NAT/firewall behavior and browser runtime.
+- Fuzzing, two-process integration, fault injection and external security review.
