@@ -14,8 +14,10 @@ The Rust crate now contains working, transport-independent primitives:
 - A bounded, versioned application-frame encoder/decoder.
 - A fixed-memory 128-sequence replay window.
 - A monotonic probe/ack tracker with acknowledgement deadlines, bounded in-flight work, miss thresholds, and consecutive-success recovery.
+- A receiver-reported delivery ledger that keeps A→B and B→A independent and bounds unconfirmed receipts.
+- A bidirectional delivery supervisor that reports one-way failure only when one direction has explicit receiver-reported missing evidence and the opposite direction has confirmed delivery.
 
-The code includes unit tests and CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
+The crate includes 40 unit tests across state transitions, framing, replay, probes, and directional delivery evidence. CI is configured to run them; treat a commit as validated only when its Actions job is green. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
 
 See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
