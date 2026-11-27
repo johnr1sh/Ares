@@ -7,8 +7,8 @@
 //! per-direction, per-message-kind ChaCha20-Poly1305 keys.
 
 use crate::{
-    decode_frame, encode_frame, BidirectionalDelivery, Direction, DirectionState, MessageKind,
-    DirectionHealth, ReceiptPolicy, SessionHealth, SessionState,
+    decode_frame, encode_frame, BidirectionalDelivery, Direction, DirectionHealth, DirectionState,
+    MessageKind, ReceiptPolicy, SessionHealth, SessionState,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chacha20poly1305::{
@@ -168,7 +168,8 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
                     state.direction(Direction::AToB).state(),
                     state.direction(Direction::BToA).state(),
                 ];
-                for (index, direction) in [Direction::AToB, Direction::BToA].into_iter().enumerate() {
+                for (index, direction) in [Direction::AToB, Direction::BToA].into_iter().enumerate()
+                {
                     let confirmed = state.direction(direction).confirmed_received();
                     if confirmed > last_confirmed[index] {
                         last_confirmed[index] = confirmed;
@@ -182,9 +183,16 @@ pub async fn run_peer(config: PeerConfig) -> Result<()> {
                     }
                 }
                 let session = SessionHealth {
-                    a_to_b: DirectionHealth { state: directional[0], ..DirectionHealth::default() },
-                    b_to_a: DirectionHealth { state: directional[1], ..DirectionHealth::default() },
-                }.state();
+                    a_to_b: DirectionHealth {
+                        state: directional[0],
+                        ..DirectionHealth::default()
+                    },
+                    b_to_a: DirectionHealth {
+                        state: directional[1],
+                        ..DirectionHealth::default()
+                    },
+                }
+                .state();
                 println!(
                     "ARES_STATE local={} session={:?} a_to_b={:?} b_to_a={:?}",
                     local_name(monitor_role),
