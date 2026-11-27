@@ -1,45 +1,53 @@
 # ARES
 
-**ARES** is an open-source, offline-capable real-time communication system for audio, video, messaging, and data.
+**ARES** is an open-development project for real-time audio, video, messaging, and data communication, designed around offline-capable networking and independently verified communication directions.
 
-Its first engineering target is **ARES Core 0.1**: a secure two-peer prototype that can establish a local session without internet, independently verify both communication directions, and detect/localize one-way failures.
+Its first target is **ARES Core 0.1**: a two-peer native foundation that will establish authenticated sessions over viable IP networks, including local networks without internet access, and detect/localize one-way communication failures.
 
 > Reliability is an engineering objective, not a current performance claim. A target of 100× fewer failures than a named WebRTC baseline must be demonstrated by reproducible, statistically defensible tests before it is claimed.
 
-## Project status
+## Current implementation
 
-The repository is at the requirements and architecture foundation stage. The current work establishes invariants, threat boundaries, protocol requirements, and a reproducible validation plan before committing to a transport or implementation language.
+The Rust crate now contains working, transport-independent primitives:
+
+- Independent A→B and B→A health records with a derived session state.
+- A bounded, versioned application-frame encoder/decoder.
+- A fixed-memory 128-sequence replay window.
+- A monotonic probe/ack tracker with acknowledgement deadlines, bounded in-flight work, miss thresholds, and consecutive-success recovery.
+
+These components are unit-tested in the repository CI workflow. They do **not** yet provide sockets, QUIC, peer discovery, peer authentication, encryption, a complete two-peer session, audio/video, browser support, or offline-LAN proof. The frame codec is not cryptographic protection and must only be used inside an authenticated encrypted transport.
+
+See [implementation status](docs/implementation-status.md) for the exact boundary between working code and planned work.
 
 ## Non-negotiable properties
 
-- **Bidirectional correctness:** A→B and B→A are independently measured. “Connected” never implies that both directions work.
-- **Offline-first:** peers can communicate over a viable local network without a cloud service or internet connection.
+- **Bidirectional correctness:** A→B and B→A are independently measured. “Connected” never implies both directions work.
+- **Offline-first:** local sessions must work over a viable LAN without cloud or internet dependencies.
 - **Secure by default:** authenticate peers, encrypt traffic, reject replay, bound resource use, and never silently downgrade.
-- **Failure isolation:** control, media, and data subsystems have independent health and recovery.
-- **Evidence-led reliability:** every reliability claim names its baseline, metric, environment, sample size, and uncertainty.
+- **Failure isolation:** control, media, and data subsystems have independent health and bounded recovery.
+- **Evidence-led reliability:** every claim names its baseline, metric, environment, sample size, and uncertainty.
 - **Graceful degradation:** preserve working capabilities when another path or subsystem fails.
 
-## Engineering roadmap
+## Roadmap
 
-1. **M0 — Foundation:** requirements, threat model, architecture, protocol decision records, benchmark and fault-injection plan.
-2. **M1 — Core 0.1:** authenticated two-peer sessions, bidirectional probes, reliable and deadline-bound data, LAN-only operation, failure localization, bounded recovery.
-3. **M2 — Media:** audio/video pipeline, clocking, jitter handling, synchronization, adaptive quality.
-4. **M3 — Connectivity:** discovery, IPv4/IPv6, NAT traversal, relays, interface/path migration.
-5. **M4 — Runtimes:** native and browser-compatible implementations with explicit capability negotiation.
-6. **M5 — Multiparty:** group security, forwarding, load control, and scale testing.
+1. **M0 — Foundation:** requirements, threat model, architecture, protocol record, CI, and fault-injection plan. The documentation and initial crate foundations are present.
+2. **M1a — Reliability primitives:** framing, replay-window bookkeeping, directional state, and probe lifecycle. Implemented in the Rust crate; CI verification is required for each commit.
+3. **M1b — Secure native transport:** authenticated peer identity, encrypted QUIC transport, explicit trust bootstrap, and two-process integration tests.
+4. **M1c — Local connectivity:** manual/QR pairing, endpoint selection, offline-LAN tests, and direction-specific network impairment.
+5. **M2 — Media:** audio/video pipeline, clocking, jitter handling, synchronization, and adaptive quality.
+6. **M3 — Connectivity:** IPv4/IPv6, NAT traversal, relay policy, interface/path migration, and recovery.
+7. **M4 — Runtimes:** browser-compatible transport/API with explicit capability negotiation.
+8. **M5 — Multiparty:** group security, forwarding, congestion/load control, and scale testing.
 
 ## Documentation
 
+- [Implementation status](docs/implementation-status.md)
 - [Architecture](docs/architecture.md)
-- [Core protocol requirements](docs/core-protocol.md)
+- [Core protocol and frame format](docs/core-protocol.md)
 - [Security model](SECURITY.md)
 - [Validation and fault-injection plan](docs/testing.md)
 - [Contributing](CONTRIBUTING.md)
 
-## Design discipline
-
-The documents define requirements and candidate designs; they do not imply that a transport, cryptographic suite, or implementation has already been selected or validated. Decisions that affect interoperability or security must be recorded as ADRs with evidence and reversal conditions.
-
 ## License
 
-No license has been selected yet. Until a license file is added, all rights are reserved by default; do not assume this repository is already licensed for reuse.
+No license has been selected or published yet. Until a license file is added, all rights are reserved by default; do not assume the repository is already licensed for reuse.
