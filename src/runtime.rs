@@ -135,6 +135,7 @@ struct DirectionEvidenceFreshness {
     last_missing_at: Option<time::Instant>,
     last_any_at: Option<time::Instant>,
     stale: bool,
+    recovery_required: bool,
     recovery_successes: u32,
 }
 
@@ -146,7 +147,7 @@ impl DirectionEvidenceFreshness {
         missing_count: u64,
         now: time::Instant,
         stale_after: Duration,
-        recovery_required: u32,
+        required_successes: u32,
     ) -> (DirectionState, bool) {
         let new_positive = positive_count.saturating_sub(self.last_positive_count);
         let new_missing = missing_count.saturating_sub(self.last_missing_count);
@@ -156,12 +157,12 @@ impl DirectionEvidenceFreshness {
         if new_positive > 0 {
             self.last_positive_at = Some(now);
             self.last_any_at = Some(now);
-            if self.stale {
+            if self.recovery_required {
                 self.recovery_successes = self
                     .recovery_successes
                     .saturating_add(new_positive.min(u64::from(u32::MAX)) as u32);
-                if self.recovery_successes >= recovery_required {
-                    self.stale = false;
+                if self.recovery_successes >= required_successes {
+                    self.recovery_required = false;
                     self.recovery_successes = 0;
                 }
             }
@@ -188,19 +189,21 @@ impl DirectionEvidenceFreshness {
                 .unwrap_or(false)
         {
             self.stale = true;
+            self.recovery_required = true;
             self.recovery_successes = 0;
         }
 
-        let effective = if self.stale
+        let effective = if (self.stale
             && matches!(
                 underlying,
                 DirectionState::Healthy | DirectionState::Failed | DirectionState::Recovering
-            ) {
+            )) || (self.recovery_required && underlying == DirectionState::Healthy) {
             DirectionState::Degraded
         } else {
             underlying
         };
         let fresh = !self.stale
+            && !(self.recovery_required && underlying == DirectionState::Healthy)
             && relevant_time
                 .map(|observed| now.duration_since(observed) < stale_after)
                 .unwrap_or(false);
@@ -966,6 +969,60 @@ mod tests {
             .await
             .expect("mutual-auth gate waiter was not notified")
             .expect("mutual-auth gate task panicked");
+    }
+
+    #[test]
+    fn fresh_negative_report_does_not_bypass_stale_recovery_hysteresis() {
+        let now = time::Instant::now();
+        let stale_after = Duration::from_secs(3);
+        let mut freshness = DirectionEvidenceFreshness::default();
+
+        freshness.evaluate(DirectionState::Healthy, 4, 0, now, stale_after, 2);
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                4,
+                0,
+                now + stale_after + Duration::from_millis(1),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, false)
+        );
+
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Degraded,
+                4,
+                1,
+                now + stale_after + Duration::from_millis(100),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, true)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                5,
+                1,
+                now + stale_after + Duration::from_millis(200),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Degraded, false)
+        );
+        assert_eq!(
+            freshness.evaluate(
+                DirectionState::Healthy,
+                6,
+                1,
+                now + stale_after + Duration::from_millis(300),
+                stale_after,
+                2,
+            ),
+            (DirectionState::Healthy, true)
+        );
     }
 
 }
