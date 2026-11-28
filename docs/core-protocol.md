@@ -50,7 +50,7 @@ A receiver may report a sequence missing only after its own observation deadline
 
 The two ledgers remain independent. A session is classified OneWay only when one direction has explicit receiver-reported missing evidence beyond its configured threshold while the opposite direction has confirmed receiver-reported delivery. If the reverse reporting path is also unavailable, the result remains incomplete/degraded rather than inventing a direction diagnosis.
 
-The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing send and report sequence numbers, rejects unsolicited/duplicate/out-of-order reports, and requires consecutive confirmed receipts to recover from Failed. The integration must authenticate each report and enforce its session/direction binding before invoking the API. The native proof-of-concept runtime now sends reports as ChaCha20-Poly1305-protected UDP datagrams, with keys derived by HKDF-SHA-256 from an out-of-band session PSK and separated by direction/message kind. The reusable ledger crate itself does not perform cryptographic authentication. The current UDP adapter rejects duplicate/out-of-order ledger reports but does not yet provide a report reorder buffer, retransmission, or ack-of-ack protocol.
+The ledger bounds pending receipts (hard maximum 4,096 per direction), requires increasing send sequence numbers, rejects unsolicited/duplicate reports, and buffers authenticated reports that arrive out of order. Buffered reports remain within the existing pending bound and are applied in original probe order, so loss and recovery thresholds cannot be reordered by network arrival. A gap in reports intentionally blocks later outcomes from being applied until the earlier report arrives; this avoids false health transitions but means report retransmission is still needed to unblock progress after a permanently lost report. The integration must authenticate each report and enforce its session/direction binding before invoking the API. The native proof-of-concept runtime sends reports as ChaCha20-Poly1305-protected UDP datagrams, with keys derived by HKDF-SHA-256 from an out-of-band session PSK and separated by direction/message kind. The reusable ledger crate itself does not perform cryptographic authentication. The adapter still has no report retransmission or ack-of-ack protocol.
 
 ## Session health
 
@@ -60,7 +60,7 @@ A session is bidirectionally healthy only when both direction records are Health
 
 - Production pairing/first-contact trust bootstrap and transcript-bound capability negotiation.
 - Production key rotation/revocation and a formal session-key lifecycle.
-- UDP report reorder/retransmission/ack-of-ack and stronger recovery semantics.
+- UDP report retransmission/ack-of-ack and stronger recovery semantics.
 - QUIC/media transport evaluation, path selection and teardown.
 - Explicit reliable and deadline-bound delivery APIs.
 - Discovery, offline-LAN proof, NAT/firewall behavior and browser runtime.

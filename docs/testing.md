@@ -16,7 +16,7 @@ The Rust tests cover:
 - Frame round-trip, empty payload, invalid magic/version/kind, reserved flags, truncated header, oversized payload, and declared/actual length mismatches.
 - Replay acceptance, duplicates, bounded reordering, stale values, large sequence jumps, and the u64 boundary.
 - Probe policy validation, bounded in-flight work, strictly increasing sequences, timeout/miss transitions, expired acknowledgements, terminal close, and recovery hysteresis.
-- Receiver-reported delivery evidence: send submission is not delivery, unsolicited reports are rejected, missing reports degrade/fail only their direction, recovery requires consecutive receipts, pending work is bounded, and out-of-order receiver reports are rejected.
+- Receiver-reported delivery evidence: send submission is not delivery, unsolicited reports are rejected, missing reports degrade/fail only their direction, recovery requires consecutive receipts, pending work is bounded, and out-of-order receiver reports are buffered and applied in sequence order; duplicate buffered reports are rejected.
 - Bidirectional delivery classification: one direction can be explicitly failed while the opposite direction remains confirmed healthy; one healthy direction alone never marks the session healthy; a failed direction plus an unverified reverse direction is Degraded, not falsely called OneWay; two confirmed failed directions are Unavailable.
 - Replay-window exact 127/128 sequence-distance boundaries and integer overflow edges.
 - AEAD datagram round trips, ciphertext-tamper rejection, session binding, and per-direction/per-message-kind key separation.
@@ -84,3 +84,8 @@ A 100× improvement claim requires the same metric, baseline implementation/vers
 ## Core 0.1 release gate
 
 Do not call Core 0.1 validated until mandatory acceptance tests pass on documented supported platforms; both one-way failure directions are detected/localized; offline LAN operation is demonstrated on a documented topology; resource/retry limits are exercised; security negative tests pass; and scripts/reproduction instructions are published.
+
+
+## 2026-11-28 receipt-order regression
+
+Added unit coverage for receiver reports arriving in reverse sequence order and for duplicate reports while buffered. The expected behavior is that later outcomes remain pending and do not affect health counters until every earlier sequence has a report; once the gap closes, outcomes are applied chronologically. This avoids arrival-order-dependent recovery/loss streaks without expanding memory beyond the existing pending receipt limit. CI validation for this change is pending.

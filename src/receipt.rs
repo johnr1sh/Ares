@@ -77,7 +77,7 @@ impl fmt::Display for ReceiptError {
             ),
             Self::ReportSequenceNotIncreasing { previous, next } => write!(
                 f,
-                "receipt reports must be ordered: previous {previous}, next {next}"
+                "receiver observations must increase: previous {previous}, next {next}"
             ),
             Self::PendingLimitReached => write!(f, "pending receipt limit reached"),
             Self::UnknownOrAlreadyReported(sequence) => {
